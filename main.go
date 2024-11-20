@@ -12,6 +12,6 @@ func main() {
 
 	err := httpServer.Start()
 	if err != nil {
-		slog.Error("error starting server", err.Error())
+		slog.Error("error starting server", "error", err.Error())
 	}
 }
