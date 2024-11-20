@@ -1,0 +1,12 @@
+server:
+  host: 127.0.0.1
+  port: 8080
+
+db:
+  host: localhost
+  port: 5432
+  user: tesla
+  password: tesla123
+  dbname: cadet
+  sslmode: disable
+  timezone: Asia/Kolkata
