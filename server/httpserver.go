@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/tesla59/blaze/config"
+	"github.com/tesla59/blaze/websocket/handler"
 	"log/slog"
 	"net/http"
 )
@@ -27,6 +28,12 @@ func (s *httpServer) Start() error {
 		}
 	})
 
+	s.registerHandlers()
+
 	slog.Info("Starting Server on " + s.cfg.Server.Host + ":" + s.cfg.Server.Port)
 	return http.ListenAndServe(s.cfg.Server.Host+":"+s.cfg.Server.Port, s.mux)
+}
+
+func (s *httpServer) registerHandlers() {
+	s.mux.HandleFunc("/ws", handler.NewWSHandler().Handle())
 }
