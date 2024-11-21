@@ -20,14 +20,6 @@ func NewHTTPServer(cfg config.Config) Server {
 }
 
 func (s *httpServer) Start() error {
-	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte("Hello, World!\n"))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
-
 	s.registerHandlers()
 
 	slog.Info("Starting Server on " + s.cfg.Server.Host + ":" + s.cfg.Server.Port)
@@ -35,5 +27,10 @@ func (s *httpServer) Start() error {
 }
 
 func (s *httpServer) registerHandlers() {
+	s.mux.HandleFunc("/", homeHandler)
+	s.mux.HandleFunc("/healthz", healthHandler)
+
 	s.mux.HandleFunc("/ws", handler.NewWSHandler().Handle())
+
+	s.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./view/static"))))
 }
