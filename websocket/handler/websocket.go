@@ -53,16 +53,18 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	id := r.URL.Query().Get("id")
-	if id == "" {
-		fmt.Println("No ID provided")
+	// Identify the client
+	_, message, err := conn.ReadMessage()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	target := r.URL.Query().Get("target")
-	if target == "" {
-		fmt.Println("No target provided")
-		return
-	}
+	fmt.Println("Received message: ", string(message))
+
+	id := "test-client"
+	target := "test-target"
+
+	conn.WriteMessage(websocket.TextMessage, []byte("Connected to server"))
 
 	addClient(id, conn)
 	defer removeClient(id)
