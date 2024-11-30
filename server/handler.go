@@ -1,7 +1,6 @@
 package server
 
 import (
-	"html/template"
 	"net/http"
 )
 
@@ -13,6 +12,5 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("./view/templates/index.html"))
-	tmpl.Execute(w, nil)
+	w.Write([]byte("Welcome to the home page!\n"))
 }

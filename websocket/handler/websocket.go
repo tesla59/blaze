@@ -35,7 +35,11 @@ func removeClient(id string) {
 
 func NewWSHandler() *WSHandler {
 	return &WSHandler{
-		Upgrader: websocket.Upgrader{},
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
 	}
 }
 
@@ -61,8 +65,8 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("Received message: ", string(message))
 
-	id := "test-client"
-	target := "test-target"
+	id := "tesla"
+	target := "lamma"
 
 	conn.WriteMessage(websocket.TextMessage, []byte("Connected to server"))
 
