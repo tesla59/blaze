@@ -47,6 +47,8 @@ export default function Home() {
   };
 
   useEffect(() => {
+    const id = getOrCreateClientId();
+    setClientID(id);
     return () => {
       if (socket) socket.close();
     };
@@ -54,14 +56,9 @@ export default function Home() {
 
   return (
       <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-        <h1>Chat App</h1>
+        <h1>Your Client ID</h1>
+        <p>{clientID}</p>
         <div>
-          <input
-              type="text"
-              placeholder="Client ID"
-              value={clientID}
-              onChange={(e) => setClientID(e.target.value)}
-          />
           <input
               type="text"
               placeholder="Target ID"
@@ -89,3 +86,17 @@ export default function Home() {
       </div>
   );
 }
+
+const getOrCreateClientId = () => {
+  // Check if we're in a browser environment
+  if (typeof window !== 'undefined') {
+    let clientId = localStorage.getItem('clientId');
+    // if (!clientId) { # Temporary, will change when we add authentication
+      clientId = crypto.randomUUID();
+      localStorage.setItem('clientId', clientId);
+    // }
+    return clientId;
+  }
+  // Fallback for server-side rendering
+  return `client-${Date.now()}`;
+};
