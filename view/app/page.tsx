@@ -17,7 +17,7 @@ export default function Home() {
     const ws = new WebSocket('ws://localhost:8080/ws');
       ws.onopen = () => {
         console.log('Connected to WebSocket');
-        ws.send(JSON.stringify({ clientID, targetID }));
+        ws.send(JSON.stringify({ "id": clientID, "target": targetID }));
       };
 
       ws.onmessage = (event) => {

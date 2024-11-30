@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"net/http"
@@ -63,10 +64,25 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	identityMessage := make(map[string]string)
 	fmt.Println("Received message: ", string(message))
 
-	id := "tesla"
-	target := "lamma"
+	if err := json.Unmarshal(message, &identityMessage); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if _, ok := identityMessage["id"]; !ok {
+		http.Error(w, "Client ID not found", http.StatusBadRequest)
+		return
+	}
+	if _, ok := identityMessage["target"]; !ok {
+		http.Error(w, "Target ID not found", http.StatusBadRequest)
+		return
+	}
+
+	id := identityMessage["id"]
+	target := identityMessage["target"]
 
 	conn.WriteMessage(websocket.TextMessage, []byte("Connected to server"))
 
