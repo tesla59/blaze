@@ -23,10 +23,8 @@ var once = sync.Once{}
 
 func GetClientMap() *Map {
 	once.Do(func() {
-		slog.Debug("Creating new client map")
 		ClientMap = newClientMap()
 	})
-	slog.Debug("Returning existing client map")
 	return ClientMap
 }
 
@@ -45,7 +43,7 @@ func (m *Map) RemoveClient(id string) {
 	delete(m.Map, id)
 }
 
-func (c *Client) SendMessage(targetID string, messageType int, message string) {
+func (c *Client) SendMessage(targetID string, messageType int, message []byte) {
 	clientMap := GetClientMap()
 
 	clientMap.Mutex.Lock()
@@ -57,7 +55,7 @@ func (c *Client) SendMessage(targetID string, messageType int, message string) {
 		return
 	}
 
-	err := targetClient.Conn.WriteMessage(messageType, []byte(message))
+	err := targetClient.Conn.WriteMessage(messageType, message)
 	if err != nil {
 		slog.Warn("Error sending message", "ID", targetID, "error", err)
 	}

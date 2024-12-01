@@ -14,15 +14,31 @@ export default function Home() {
             return
         }
         const ws = new WebSocket('ws://localhost:8080/ws');
-      
+
         ws.onopen = () => {
             console.log('Connected to WebSocket');
             ws.send(JSON.stringify({ "id": clientID }));
         };
 
         ws.onmessage = (event) => {
-            const data = event.data;
-            setMessages((prevMessages) => [...prevMessages, data]);
+            try {
+                const parsedData = JSON.parse(event.data);
+                console.log("Parsed JSON:", parsedData);
+
+                switch (parsedData.type) {
+                    case "identity":
+                        setTargetID(parsedData.target);
+                        break;
+                    case "message":
+                        setMessages((prevMessages) => [...prevMessages, parsedData.message ]);
+                        break;
+                    default:
+                        console.warn("Unknown message type:", parsedData.type);
+                }
+            } catch (error) {
+                console.error("Error parsing JSON:", error);
+            }
+
         };
 
         ws.onclose = () => {
@@ -40,11 +56,17 @@ export default function Home() {
 
   const handleSendMessage = () => {
     if (socket && message) {
-      socket.send(JSON.stringify({ message, clientID, targetID }));
+      socket.send(JSON.stringify({ "type": "message" ,message, clientID, targetID }));
       setMessage('');
     }
   };
 
+  const handleShuffle = () => {
+    if (socket) {
+      socket.send(JSON.stringify({ "type": "shuffle" }));
+    }
+  };
+    
   useEffect(() => {
     const id = getOrCreateClientId();
     setClientID(id);
@@ -59,10 +81,11 @@ export default function Home() {
         <p>{clientID}</p>
         <h2>Connect to the Target</h2>
         <p>{targetID}</p>
-        <div>
-          <button onClick={handleConnect}>Connect</button>
-        </div>
-        <div style={{ marginTop: '20px' }}>
+          <div>
+              <button onClick={handleConnect}>Connect</button>
+              <button onClick={handleShuffle}>Shuffle</button>
+          </div>
+          <div style={{marginTop: '20px'}}>
         <textarea
             placeholder="Type a message..."
             value={message}
@@ -86,10 +109,10 @@ const getOrCreateClientId = () => {
   // Check if we're in a browser environment
   if (typeof window !== 'undefined') {
     let clientId = localStorage.getItem('clientId');
-    // if (!clientId) { # Temporary, will change when we add authentication
+    if (!clientId) {
       clientId = crypto.randomUUID();
       localStorage.setItem('clientId', clientId);
-    // }
+    }
     return clientId;
   }
   // Fallback for server-side rendering
