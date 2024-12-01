@@ -4,34 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/tesla59/blaze/client"
+	"log/slog"
 	"net/http"
-	"sync"
 )
 
 type WSHandler struct {
 	Upgrader websocket.Upgrader
-}
-
-type Client struct {
-	ID   string
-	Conn *websocket.Conn
-}
-
-var (
-	clients   = make(map[string]*Client)
-	clientsMu sync.Mutex
-)
-
-func addClient(id string, conn *websocket.Conn) {
-	clientsMu.Lock()
-	defer clientsMu.Unlock()
-	clients[id] = &Client{ID: id, Conn: conn}
-}
-
-func removeClient(id string) {
-	clientsMu.Lock()
-	defer clientsMu.Unlock()
-	delete(clients, id)
 }
 
 func NewWSHandler() *WSHandler {
@@ -64,32 +43,22 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	identityMessage := make(map[string]string)
-	fmt.Println("Received message: ", string(message))
 
-	if err := json.Unmarshal(message, &identityMessage); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	localClient, err := getClientFromMessage(message)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	localClient.Conn = conn
 
-	if _, ok := identityMessage["id"]; !ok {
-		http.Error(w, "Client ID not found", http.StatusBadRequest)
-		return
-	}
-	if _, ok := identityMessage["target"]; !ok {
-		http.Error(w, "Target ID not found", http.StatusBadRequest)
-		return
-	}
+	clientMap := client.GetClientMap()
+	clientMap.AddClient(localClient)
+	defer clientMap.RemoveClient(localClient.ID)
 
-	id := identityMessage["id"]
-	target := identityMessage["target"]
+	slog.Debug("Client connected", "ID", localClient.ID)
 
+	// Remove Later
 	conn.WriteMessage(websocket.TextMessage, []byte("Connected to server"))
-
-	addClient(id, conn)
-	defer removeClient(id)
-
-	fmt.Printf("Client %s connected\n", id)
 
 	for {
 		messageType, message, err := conn.ReadMessage()
@@ -98,22 +67,27 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Send the message to the target client
-		sendMessage(target, messageType, string(message)+" from "+id)
+		localClient.SendMessage(localClient.ConnectedTo, messageType, string(message)+" from "+localClient.ID)
 	}
 }
 
-func sendMessage(targetID string, messageType int, message string) {
-	clientsMu.Lock()
-	defer clientsMu.Unlock()
+func getClientFromMessage(message []byte) (client.Client, error) {
+	identityMessage := make(map[string]string)
+	slog.Debug("Received message", "message", string(message))
 
-	targetClient, exists := clients[targetID]
-	if !exists {
-		fmt.Printf("Target client %s not found\n", targetID)
-		return
+	if err := json.Unmarshal(message, &identityMessage); err != nil {
+		return client.Client{}, err
 	}
 
-	err := targetClient.Conn.WriteMessage(messageType, []byte(message))
-	if err != nil {
-		fmt.Printf("Error sending message to %s: %v\n", targetID, err)
+	if _, ok := identityMessage["id"]; !ok {
+		return client.Client{}, fmt.Errorf("ID not found")
 	}
+
+	id := identityMessage["id"]
+
+	return client.Client{
+		ID:          id,
+		Conn:        nil,
+		ConnectedTo: "",
+	}, nil
 }

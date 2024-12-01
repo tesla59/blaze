@@ -9,15 +9,11 @@ export default function Home() {
   const [message, setMessage] = useState('');
 
   const handleConnect = () => {
-    if (!clientID || !targetID) {
-      alert('Please enter both Client ID and Target ID.');
-      return;
-    }
     try {
     const ws = new WebSocket('ws://localhost:8080/ws');
       ws.onopen = () => {
         console.log('Connected to WebSocket');
-        ws.send(JSON.stringify({ "id": clientID, "target": targetID }));
+        ws.send(JSON.stringify({ "id": clientID }));
       };
 
       ws.onmessage = (event) => {
@@ -58,13 +54,9 @@ export default function Home() {
       <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
         <h1>Your Client ID</h1>
         <p>{clientID}</p>
+        <h2>Connect to the Target</h2>
+        <p>{targetID}</p>
         <div>
-          <input
-              type="text"
-              placeholder="Target ID"
-              value={targetID}
-              onChange={(e) => setTargetID(e.target.value)}
-          />
           <button onClick={handleConnect}>Connect</button>
         </div>
         <div style={{ marginTop: '20px' }}>
