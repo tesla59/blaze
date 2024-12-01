@@ -10,26 +10,29 @@ export default function Home() {
 
   const handleConnect = () => {
     try {
-    const ws = new WebSocket('ws://localhost:8080/ws');
-      ws.onopen = () => {
-        console.log('Connected to WebSocket');
-        ws.send(JSON.stringify({ "id": clientID }));
-      };
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            return
+        }
+        const ws = new WebSocket('ws://localhost:8080/ws');
+      
+        ws.onopen = () => {
+            console.log('Connected to WebSocket');
+            ws.send(JSON.stringify({ "id": clientID }));
+        };
 
-      ws.onmessage = (event) => {
-        const data = event.data;
-        setMessages((prevMessages) => [...prevMessages, data]);
-      };
+        ws.onmessage = (event) => {
+            const data = event.data;
+            setMessages((prevMessages) => [...prevMessages, data]);
+        };
 
-      ws.onclose = () => {
-        console.log('WebSocket connection closed');
-      };
+        ws.onclose = () => {
+            console.log('WebSocket connection closed');
+        };
 
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
-
-      setSocket(ws);
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+        setSocket(ws);
     } catch (e) {
         console.error('WebSocket error:', e);
     }

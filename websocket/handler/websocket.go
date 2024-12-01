@@ -50,15 +50,26 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	localClient.Conn = conn
+	localClient.RandomizeTarget()
+	slog.Debug("Client identified", "ID", localClient.ID, "ConnectedTo", localClient.ConnectedTo)
 
 	clientMap := client.GetClientMap()
-	clientMap.AddClient(localClient)
+	clientMap.AddClient(&localClient)
 	defer clientMap.RemoveClient(localClient.ID)
 
 	slog.Debug("Client connected", "ID", localClient.ID)
 
 	// Remove Later
-	conn.WriteMessage(websocket.TextMessage, []byte("Connected to server"))
+	resp := map[string]string{
+		"type":   "identity",
+		"id":     localClient.ID,
+		"target": localClient.ConnectedTo,
+	}
+	respBytes, _ := json.Marshal(resp)
+	if err := conn.WriteMessage(websocket.TextMessage, respBytes); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	for {
 		messageType, message, err := conn.ReadMessage()
