@@ -109,6 +109,9 @@ func handleClientMessage(c *client.Client, messageType int, message []byte) {
 		return
 	}
 
+	// used by switch cases
+	clientMap := client.GetClientMap()
+
 	switch messageJSON["type"] {
 	case "message":
 		messageMap := map[string]string{
@@ -132,6 +135,18 @@ func handleClientMessage(c *client.Client, messageType int, message []byte) {
 		}
 		respBytes, _ := json.Marshal(resp)
 		if err := c.Conn.WriteMessage(websocket.TextMessage, respBytes); err != nil {
+			slog.Warn("Error sending message", "ID", c.ID, "error", err)
+			return
+		}
+		peerClient := clientMap.Map[c.ConnectedTo]
+		peerClient.RandomizeTarget()
+		resp = map[string]string{
+			"type":   "identity",
+			"id":     peerClient.ID,
+			"target": peerClient.ConnectedTo,
+		}
+		respBytes, _ = json.Marshal(resp)
+		if err := peerClient.Conn.WriteMessage(websocket.TextMessage, respBytes); err != nil {
 			slog.Warn("Error sending message", "ID", c.ID, "error", err)
 			return
 		}
