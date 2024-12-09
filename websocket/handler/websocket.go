@@ -7,6 +7,7 @@ import (
 	"github.com/tesla59/blaze/client"
 	"log/slog"
 	"net/http"
+	"sync"
 )
 
 type WSHandler struct {
@@ -50,26 +51,14 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	localClient.Conn = conn
-	localClient.RandomizeTarget()
-	slog.Debug("Client identified", "ID", localClient.ID, "ConnectedTo", localClient.ConnectedTo)
-
-	clientMap := client.GetClientMap()
-	clientMap.AddClient(&localClient)
-	defer clientMap.RemoveClient(localClient.ID)
-
-	slog.Debug("Client connected", "ID", localClient.ID)
+	slog.Debug("Client identified", "ID", localClient.ID)
 
 	// Remove Later
 	resp := map[string]string{
-		"type":   "identity",
-		"id":     localClient.ID,
-		"target": localClient.ConnectedTo,
+		"type": "identity",
+		"id":   localClient.ID,
 	}
-	respBytes, _ := json.Marshal(resp)
-	if err := conn.WriteMessage(websocket.TextMessage, respBytes); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	localClient.SendJSON(resp)
 
 	for {
 		messageType, message, err := conn.ReadMessage()
@@ -96,9 +85,10 @@ func getClientFromMessage(message []byte) (client.Client, error) {
 	id := identityMessage["id"]
 
 	return client.Client{
-		ID:          id,
-		Conn:        nil,
-		ConnectedTo: "",
+		ID:    id,
+		State: "waiting",
+		Conn:  nil,
+		Mutex: sync.RWMutex{},
 	}, nil
 }
 
@@ -109,48 +99,29 @@ func handleClientMessage(c *client.Client, messageType int, message []byte) {
 		return
 	}
 
-	// used by switch cases
-	clientMap := client.GetClientMap()
-
 	switch messageJSON["type"] {
 	case "message":
 		messageMap := map[string]string{
 			"type":    "message",
 			"message": messageJSON["message"],
 			"from":    c.ID,
-			"to":      c.ConnectedTo,
 		}
 		messageByte, err := json.Marshal(messageMap)
 		if err != nil {
 			slog.Warn("Error marshalling message", "ID", c.ID, "error", err)
 			return
 		}
-		c.SendMessage(c.ConnectedTo, messageType, messageByte)
+		c.SendMessage(messageType, messageByte)
 	case "shuffle":
-		c.RandomizeTarget()
 		resp := map[string]string{
-			"type":   "identity",
-			"id":     c.ID,
-			"target": c.ConnectedTo,
+			"type": "identity",
+			"id":   c.ID,
 		}
 		respBytes, _ := json.Marshal(resp)
 		if err := c.Conn.WriteMessage(websocket.TextMessage, respBytes); err != nil {
 			slog.Warn("Error sending message", "ID", c.ID, "error", err)
 			return
 		}
-		peerClient := clientMap.Map[c.ConnectedTo]
-		peerClient.RandomizeTarget()
-		resp = map[string]string{
-			"type":   "identity",
-			"id":     peerClient.ID,
-			"target": peerClient.ConnectedTo,
-		}
-		respBytes, _ = json.Marshal(resp)
-		if err := peerClient.Conn.WriteMessage(websocket.TextMessage, respBytes); err != nil {
-			slog.Warn("Error sending message", "ID", c.ID, "error", err)
-			return
-		}
-		slog.Debug("Client shuffled", "ID", c.ID, "ConnectedTo", c.ConnectedTo)
 	default:
 		slog.Warn("Unknown message type", "ID", c.ID, "type", messageJSON["type"])
 	}
