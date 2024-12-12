@@ -2,7 +2,6 @@ package matchmaker
 
 import (
 	"fmt"
-	"github.com/gorilla/websocket"
 	"github.com/tesla59/blaze/client"
 	"github.com/tesla59/blaze/session"
 	"sync"
@@ -27,7 +26,7 @@ func (m *Matchmaker) Start() {
 
 		var matchedSession *session.Session
 		for _, session := range m.sessions {
-			if session.Client2.State == "waiting" {
+			if session.Client2.State == "waiting" || session.Client1.State == "waiting" {
 				matchedSession = session
 				break
 			}
@@ -37,8 +36,13 @@ func (m *Matchmaker) Start() {
 			matchedSession.Client2 = newClient
 			newClient.State = "matched"
 
-			matchedSession.Client1.SendMessage(websocket.TextMessage, []byte("Matched with client: "+newClient.ID))
-			newClient.SendMessage(websocket.TextMessage, []byte("Matched with client: "+matchedSession.Client1.ID))
+			respMessage := map[string]string{
+				"type":    "message",
+				"message": "Matched with client: " + matchedSession.Client1.ID,
+			}
+			matchedSession.Client2.SendJSON(respMessage)
+			respMessage["message"] = "Matched with client: " + newClient.ID
+			matchedSession.Client1.SendJSON(respMessage)
 
 			fmt.Printf("Client %s matched with Client %s in Session %s\n",
 				matchedSession.Client1.ID, newClient.ID, matchedSession.ID)

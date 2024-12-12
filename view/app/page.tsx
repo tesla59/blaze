@@ -23,7 +23,7 @@ export default function Home() {
         ws.onmessage = (event) => {
             try {
                 const parsedData = JSON.parse(event.data);
-                console.log("Parsed JSON:", parsedData);
+                console.log("Received JSON Parsed as:", parsedData);
 
                 switch (parsedData.type) {
                     case "identity":
