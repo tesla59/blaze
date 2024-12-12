@@ -72,6 +72,7 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// getClientFromMessage extracts the client ID from the initial message sent from frontend and returns a new client
 func getClientFromMessage(message []byte, conn *websocket.Conn) (client.Client, error) {
 	identityMessage := make(map[string]string)
 	slog.Debug("Received message", "message", string(message))
@@ -89,7 +90,8 @@ func getClientFromMessage(message []byte, conn *websocket.Conn) (client.Client, 
 	return client.NewClient(id, "waiting", conn), nil
 }
 
-func handleClientMessage(c *client.Client, messageType int, message []byte) {
+// handleClientMessage handles JSON Message from the client
+func handleClientMessage(c *client.Client, _ int, message []byte) {
 	var messageJSON map[string]string
 	if err := json.Unmarshal(message, &messageJSON); err != nil {
 		slog.Warn("Error unmarshalling message", "ID", c.ID, "error", err)
@@ -103,7 +105,10 @@ func handleClientMessage(c *client.Client, messageType int, message []byte) {
 			"message": messageJSON["message"],
 			"from":    c.ID,
 		}
-		c.SendJSON(messageMap)
+		if err := c.SendJSON(messageMap); err != nil {
+			slog.Warn("Error sending message", "ID", c.ID, "error", err)
+			return
+		}
 	case "shuffle":
 		resp := map[string]string{
 			"type": "identity",
