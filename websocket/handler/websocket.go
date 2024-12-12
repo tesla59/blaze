@@ -7,7 +7,6 @@ import (
 	"github.com/tesla59/blaze/client"
 	"log/slog"
 	"net/http"
-	"sync"
 )
 
 type WSHandler struct {
@@ -45,20 +44,23 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	localClient, err := getClientFromMessage(message)
+	localClient, err := getClientFromMessage(message, conn)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	localClient.Conn = conn
 	slog.Debug("Client identified", "ID", localClient.ID)
+	client.ClientCh <- localClient
 
 	// Remove Later
 	resp := map[string]string{
 		"type": "identity",
 		"id":   localClient.ID,
 	}
-	localClient.SendJSON(resp)
+	if err := localClient.SendJSON(resp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	for {
 		messageType, message, err := conn.ReadMessage()
@@ -70,7 +72,7 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getClientFromMessage(message []byte) (client.Client, error) {
+func getClientFromMessage(message []byte, conn *websocket.Conn) (client.Client, error) {
 	identityMessage := make(map[string]string)
 	slog.Debug("Received message", "message", string(message))
 
@@ -84,12 +86,7 @@ func getClientFromMessage(message []byte) (client.Client, error) {
 
 	id := identityMessage["id"]
 
-	return client.Client{
-		ID:    id,
-		State: "waiting",
-		Conn:  nil,
-		Mutex: sync.RWMutex{},
-	}, nil
+	return client.NewClient(id, "waiting", conn), nil
 }
 
 func handleClientMessage(c *client.Client, messageType int, message []byte) {
@@ -106,12 +103,7 @@ func handleClientMessage(c *client.Client, messageType int, message []byte) {
 			"message": messageJSON["message"],
 			"from":    c.ID,
 		}
-		messageByte, err := json.Marshal(messageMap)
-		if err != nil {
-			slog.Warn("Error marshalling message", "ID", c.ID, "error", err)
-			return
-		}
-		c.SendMessage(messageType, messageByte)
+		c.SendJSON(messageMap)
 	case "shuffle":
 		resp := map[string]string{
 			"type": "identity",

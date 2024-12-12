@@ -5,11 +5,15 @@ import (
 	"sync"
 )
 
+var (
+	ClientCh = make(chan Client)
+)
+
 type Client struct {
 	ID    string
 	State string
 	Conn  *websocket.Conn
-	Mutex sync.RWMutex
+	Mutex *sync.RWMutex
 }
 
 func NewClient(id, state string, conn *websocket.Conn) Client {
@@ -18,14 +22,18 @@ func NewClient(id, state string, conn *websocket.Conn) Client {
 		ID:    id,
 		State: state,
 		Conn:  conn,
-		Mutex: mut,
+		Mutex: &mut,
 	}
 }
 
 func (c *Client) SendMessage(messageType int, message []byte) error {
+	c.Mutex.Lock()
+	defer c.Mutex.Unlock()
 	return c.Conn.WriteMessage(messageType, message)
 }
 
 func (c *Client) SendJSON(message map[string]string) error {
+	c.Mutex.Lock()
+	defer c.Mutex.Unlock()
 	return c.Conn.WriteJSON(message)
 }
