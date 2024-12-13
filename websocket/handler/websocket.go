@@ -8,6 +8,7 @@ import (
 	"github.com/tesla59/blaze/matchmaker"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
 type WSHandler struct {
@@ -59,29 +60,35 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	slog.Debug("Client identified", "ID", localClient.ID)
 	h.MatchMaker.ClientCh <- localClient
+	time.Sleep(1 * time.Second)
+	session, ok := h.MatchMaker.Sessions[localClient.SessionID]
+	if !ok {
+		slog.Error("Session not found", "sessionID", localClient.SessionID)
+		return
+	}
 
 	for {
-		messageType, message, err := conn.ReadMessage()
+		messageType, messageByte, err := conn.ReadMessage()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		_, _ = messageType, message
+		session.HandleMessage(messageType, messageByte)
 	}
 }
 
 // getClientFromMessage extracts the client ID from the initial message sent from frontend and returns a new client
-func getClientFromMessage(message []byte, conn *websocket.Conn) (client.Client, error) {
+func getClientFromMessage(message []byte, conn *websocket.Conn) (*client.Client, error) {
 	var identityMessage Message
 	slog.Debug("Received message", "message", string(message))
 
 	if err := json.Unmarshal(message, &identityMessage); err != nil {
-		return client.Client{}, err
+		return nil, err
 	}
 
 	if identityMessage.Type != "identity" {
-		return client.Client{}, fmt.Errorf("expected message type: identity, got: %s", identityMessage.Type)
+		return nil, fmt.Errorf("expected message type: identity, got: %s", identityMessage.Type)
 	}
 
-	return client.NewClient(identityMessage.Value, "waiting", conn), nil
+	return client.NewClient(identityMessage.Value, "waiting", "", conn), nil
 }

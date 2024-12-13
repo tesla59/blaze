@@ -6,19 +6,21 @@ import (
 )
 
 type Client struct {
-	ID    string
-	State string
-	Conn  *websocket.Conn
-	Mutex *sync.RWMutex
+	ID        string
+	State     string
+	Conn      *websocket.Conn
+	Mutex     *sync.RWMutex
+	SessionID string
 }
 
-func NewClient(id, state string, conn *websocket.Conn) Client {
+func NewClient(id, state, sessionID string, conn *websocket.Conn) *Client {
 	mut := sync.RWMutex{}
-	return Client{
-		ID:    id,
-		State: state,
-		Conn:  conn,
-		Mutex: &mut,
+	return &Client{
+		ID:        id,
+		State:     state,
+		Conn:      conn,
+		Mutex:     &mut,
+		SessionID: sessionID,
 	}
 }
 

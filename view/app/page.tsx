@@ -28,9 +28,9 @@ export default function Home() {
                 switch (parsedData.type) {
                     case "identity":
                         setTargetID(parsedData.target);
-                        break;y
+                        break;
                     case "message":
-                        setMessages((prevMessages) => [...prevMessages, parsedData.message ]);
+                        setMessages((prevMessages) => [...prevMessages, parsedData.value ]);
                         break;
                     default:
                         console.warn("Unknown message type:", parsedData.type);
@@ -56,7 +56,7 @@ export default function Home() {
 
   const handleSendMessage = () => {
     if (socket && message) {
-      socket.send(JSON.stringify({ "type": "message" ,message, clientID, targetID }));
+      socket.send(JSON.stringify({ "type": "message" , "value": message, clientID, targetID }));
       setMessage('');
     }
   };
