@@ -13,7 +13,7 @@ func main() {
 	matchMaker := matchmaker.NewMatchmaker()
 	go matchMaker.Start()
 
-	httpServer := server.NewHTTPServer(*cfg)
+	httpServer := server.NewHTTPServer(*cfg, matchMaker)
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	err := httpServer.Start()

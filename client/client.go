@@ -5,10 +5,6 @@ import (
 	"sync"
 )
 
-var (
-	ClientCh = make(chan Client)
-)
-
 type Client struct {
 	ID    string
 	State string

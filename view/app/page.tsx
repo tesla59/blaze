@@ -17,7 +17,7 @@ export default function Home() {
 
         ws.onopen = () => {
             console.log('Connected to WebSocket');
-            ws.send(JSON.stringify({ "id": clientID }));
+            ws.send(JSON.stringify({ "type": "identity", "value": clientID }));
         };
 
         ws.onmessage = (event) => {
@@ -28,7 +28,7 @@ export default function Home() {
                 switch (parsedData.type) {
                     case "identity":
                         setTargetID(parsedData.target);
-                        break;
+                        break;y
                     case "message":
                         setMessages((prevMessages) => [...prevMessages, parsedData.message ]);
                         break;
