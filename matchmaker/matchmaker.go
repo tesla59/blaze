@@ -57,12 +57,15 @@ func (m *Matchmaker) Start() {
 				"type":  "message",
 				"value": "Matched with client: " + matchedSession.Client1.ID,
 			}
-			matchedSession.Client2.SendJSON(respMessage)
+			if err := matchedSession.Client2.SendJSON(respMessage); err != nil {
+				slog.Error("Failed to send message to client", "error", err)
+			}
 			respMessage["message"] = "Matched with client: " + matchedSession.Client2.ID
-			matchedSession.Client1.SendJSON(respMessage)
+			if err := matchedSession.Client1.SendJSON(respMessage); err != nil {
+				slog.Error("Failed to send message to client", "error", err)
+			}
 
-			fmt.Printf("Client %s matched with Client %s in Session %s\n",
-				matchedSession.Client1.ID, newClient.ID, matchedSession.ID)
+			slog.Debug("Matched", "Client", matchedSession.Client1.ID, "with Client", newClient.ID, "Session", matchedSession.ID)
 		} else { // No match found, create new session
 			sessionID := generateSessionID()
 			newClient.State = "waiting"
