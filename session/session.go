@@ -7,3 +7,11 @@ type Session struct {
 	Client1 client.Client
 	Client2 client.Client
 }
+
+func NewSession(id string, client1, client2 client.Client) *Session {
+	return &Session{
+		ID:      id,
+		Client1: client1,
+		Client2: client2,
+	}
+}

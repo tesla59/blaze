@@ -17,6 +17,8 @@ type Matchmaker struct {
 func NewMatchmaker() *Matchmaker {
 	return &Matchmaker{
 		Sessions: make(map[string]*session.Session),
+		ClientCh: make(chan client.Client),
+		Mu:       sync.Mutex{},
 	}
 }
 
@@ -49,10 +51,7 @@ func (m *Matchmaker) Start() {
 				matchedSession.Client1.ID, newClient.ID, matchedSession.ID)
 		} else { // No match found, create new session
 			sessionID := generateSessionID()
-			newSession := &session.Session{
-				ID:      sessionID,
-				Client1: newClient,
-			}
+			newSession := session.NewSession(sessionID, newClient, client.NewClient("", "", nil))
 			m.Sessions[sessionID] = newSession
 			newClient.State = "waiting"
 
