@@ -67,6 +67,12 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer func() {
+		session.Mu.Lock()
+		defer session.Mu.Unlock()
+		delete(h.MatchMaker.Sessions, localClient.SessionID)
+	}()
+
 	for {
 		messageType, messageByte, err := conn.ReadMessage()
 		if err != nil {

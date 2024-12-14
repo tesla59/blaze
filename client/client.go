@@ -5,6 +5,18 @@ import (
 	"sync"
 )
 
+var (
+	once     sync.Once
+	ClientCh chan *Client
+)
+
+func GetClientCh() chan *Client {
+	once.Do(func() {
+		ClientCh = make(chan *Client)
+	})
+	return ClientCh
+}
+
 type Client struct {
 	ID        string
 	State     string

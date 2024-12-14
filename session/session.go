@@ -43,7 +43,7 @@ func (s *Session) HandleMessage(messageType int, messageByte []byte) {
 	case "message":
 		s.handleTextMessage(message.Value)
 	case "shuffle":
-		s.HandleShuffle()
+		s.handleShuffle()
 	default:
 	}
 }
@@ -61,14 +61,15 @@ func (s *Session) handleTextMessage(message string) {
 	}
 }
 
-func (s *Session) HandleShuffle() {
-	s.Client1.State = "waiting"
-	s.Client2.State = "waiting"
-
-	respMessage := map[string]string{
-		"type":  "shuffle",
-		"value": "Shuffling...",
+func (s *Session) handleShuffle() {
+	clientCh := client.GetClientCh()
+	if s.Client1 != nil {
+		s.Client1.State = "waiting"
+		clientCh <- s.Client1
 	}
-	s.Client1.SendJSON(respMessage)
-	s.Client2.SendJSON(respMessage)
+	if s.Client2 != nil {
+		s.Client2.State = "waiting"
+		clientCh <- s.Client2
+		s.Client2 = nil // Reset client2
+	}
 }

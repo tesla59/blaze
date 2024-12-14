@@ -10,7 +10,7 @@ import (
 func main() {
 	cfg := config.GetConfig()
 
-	matchMaker := matchmaker.NewMatchmaker()
+	matchMaker := matchmaker.GetMatchmaker()
 	go matchMaker.Start()
 
 	httpServer := server.NewHTTPServer(*cfg, matchMaker)

@@ -15,10 +15,22 @@ type Matchmaker struct {
 	Mu       sync.Mutex
 }
 
-func NewMatchmaker() *Matchmaker {
+var (
+	once sync.Once
+	mm   *Matchmaker
+)
+
+func GetMatchmaker() *Matchmaker {
+	once.Do(func() {
+		mm = newMatchmaker()
+	})
+	return mm
+}
+
+func newMatchmaker() *Matchmaker {
 	return &Matchmaker{
 		Sessions: make(map[string]*session.Session),
-		ClientCh: make(chan *client.Client),
+		ClientCh: client.GetClientCh(),
 		Mu:       sync.Mutex{},
 	}
 }
