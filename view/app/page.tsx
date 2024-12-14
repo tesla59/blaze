@@ -32,6 +32,9 @@ export default function Home() {
                     case "message":
                         setMessages((prevMessages) => [...prevMessages, parsedData.value ]);
                         break;
+                    case "match":
+                        setTargetID(parsedData.value);
+                        break;
                     default:
                         console.warn("Unknown message type:", parsedData.type);
                 }

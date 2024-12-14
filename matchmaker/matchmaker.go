@@ -54,17 +54,16 @@ func (m *Matchmaker) Start() {
 			matchedSession.Client2.SessionID = matchedSession.ID
 
 			respMessage := map[string]string{
-				"type":  "message",
-				"value": "Matched with client: " + matchedSession.Client1.ID,
+				"type":  "match",
+				"value": matchedSession.Client1.ID,
 			}
 			if err := matchedSession.Client2.SendJSON(respMessage); err != nil {
-				slog.Error("Failed to send message to client", "error", err)
+				slog.Error("Failed to send match to client", "error", err)
 			}
-			respMessage["message"] = "Matched with client: " + matchedSession.Client2.ID
+			respMessage["value"] = matchedSession.Client2.ID
 			if err := matchedSession.Client1.SendJSON(respMessage); err != nil {
-				slog.Error("Failed to send message to client", "error", err)
+				slog.Error("Failed to send match to client", "error", err)
 			}
-
 			slog.Debug("Matched", "Client", matchedSession.Client1.ID, "with Client", newClient.ID, "Session", matchedSession.ID)
 		} else { // No match found, create new session
 			sessionID := generateSessionID()
@@ -73,7 +72,7 @@ func (m *Matchmaker) Start() {
 
 			newSession := session.NewSession(sessionID, newClient, client.NewClient("null", "waiting", sessionID, nil))
 			m.Sessions[sessionID] = newSession
-			slog.Debug("New session created with ID: %s for Client %s\n", sessionID, newClient.ID)
+			slog.Debug("New session created", "ID", sessionID, "Client", newClient.ID)
 		}
 
 		m.Mu.Unlock()
