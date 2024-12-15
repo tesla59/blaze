@@ -79,7 +79,7 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		session.HandleMessage(messageType, messageByte)
+		session.HandleMessage(messageType, messageByte, localClient.ID)
 	}
 }
 

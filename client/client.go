@@ -36,6 +36,16 @@ func NewClient(id, state, sessionID string, conn *websocket.Conn) *Client {
 	}
 }
 
+func NullClient(sessionID string, conn *websocket.Conn) Client {
+	return Client{
+		ID:        "null",
+		State:     "waiting",
+		Conn:      conn,
+		Mutex:     &sync.RWMutex{},
+		SessionID: sessionID,
+	}
+}
+
 // SendMessage sends a message to the client. Deprecated: Use SendJSON instead.
 func (c *Client) SendMessage(messageType int, message []byte) error {
 	c.Mutex.Lock()

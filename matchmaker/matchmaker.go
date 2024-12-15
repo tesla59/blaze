@@ -82,7 +82,9 @@ func (m *Matchmaker) Start() {
 			newClient.State = "waiting"
 			newClient.SessionID = sessionID
 
-			newSession := session.NewSession(sessionID, newClient, client.NewClient("null", "waiting", sessionID, nil))
+			nullClient := client.NullClient(sessionID, newClient.Conn)
+
+			newSession := session.NewSession(sessionID, newClient, &nullClient)
 			m.Sessions[sessionID] = newSession
 			slog.Debug("New session created", "ID", sessionID, "Client", newClient.ID)
 		}

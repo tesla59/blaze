@@ -35,6 +35,10 @@ export default function Home() {
                     case "match":
                         setTargetID(parsedData.value);
                         break;
+                    case "rematch":
+                        setMessages([]);
+                        setTargetID(parsedData.value);
+                        break;
                     default:
                         console.warn("Unknown message type:", parsedData.type);
                 }
@@ -45,6 +49,7 @@ export default function Home() {
         };
 
         ws.onclose = () => {
+            ws.send(JSON.stringify({ "type": "disconnect" }));
             console.log('WebSocket connection closed');
         };
 
