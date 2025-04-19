@@ -3,7 +3,7 @@ package server
 import (
 	"github.com/tesla59/blaze/config"
 	"github.com/tesla59/blaze/matchmaker"
-	"github.com/tesla59/blaze/websocket/handler"
+	"github.com/tesla59/blaze/server/websocket"
 	"log/slog"
 	"net/http"
 )
@@ -33,7 +33,7 @@ func (s *httpServer) registerHandlers() {
 	s.mux.HandleFunc("/", homeHandler)
 	s.mux.HandleFunc("/healthz", healthHandler)
 
-	s.mux.HandleFunc("/ws", handler.NewWSHandler(s.matchmaker).Handle())
+	s.mux.HandleFunc("/ws", websocket.NewWSHandler(s.matchmaker).Handle())
 
 	s.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./view/static"))))
 }

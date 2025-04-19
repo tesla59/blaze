@@ -1,7 +1,7 @@
-package handler
+package websocket
 
 import "net/http"
 
-type WebsocketHandler interface {
+type Handler interface {
 	Handle() func(w http.ResponseWriter, r *http.Request)
 }
