@@ -49,7 +49,6 @@ export default function Home() {
         };
 
         ws.onclose = () => {
-            ws.send(JSON.stringify({ "type": "disconnect" }));
             console.log('WebSocket connection closed');
         };
 
@@ -71,7 +70,7 @@ export default function Home() {
 
   const handleShuffle = () => {
     if (socket) {
-      socket.send(JSON.stringify({ "type": "shuffle" }));
+        socket.send(JSON.stringify({ "type": "shuffle" }));
     }
   };
     
@@ -79,7 +78,10 @@ export default function Home() {
     const id = getOrCreateClientId();
     setClientID(id);
     return () => {
-      if (socket) socket.close();
+      if (socket) {
+          socket.send(JSON.stringify({ "type": "disconnect" }));
+          socket.close();
+      }
     };
   }, [socket]);
 

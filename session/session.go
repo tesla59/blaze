@@ -25,6 +25,21 @@ func NewSession(id string, client1, client2 *client.Client) *Session {
 	}
 }
 
+func (s *Session) CleanUp(clientID string) {
+	clientCh := client.GetClientCh()
+	if s.Client1.ID == clientID {
+		slog.Debug("Cleaning up session", "session", s.ID, "client", s.Client1.ID)
+		nullClient := client.NullClient(s.ID, s.Client1.Conn)
+		s.Client1 = &nullClient
+		clientCh <- s.Client2
+	} else {
+		slog.Debug("Cleaning up session", "session", s.ID, "client", s.Client2.ID)
+		nullClient := client.NullClient(s.ID, s.Client2.Conn)
+		s.Client2 = &nullClient
+		clientCh <- s.Client1
+	}
+}
+
 func (s *Session) HandleMessage(messageType int, messageByte []byte, clientID string) {
 	var message types.Message
 	if err := json.Unmarshal(messageByte, &message); err != nil {

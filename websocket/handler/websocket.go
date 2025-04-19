@@ -67,16 +67,18 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer func() {
-		session.Mu.Lock()
-		defer session.Mu.Unlock()
-		delete(h.MatchMaker.Sessions, localClient.SessionID)
-	}()
+	//defer func() {
+	//	session.Mu.Lock()
+	//	defer session.Mu.Unlock()
+	//	delete(h.MatchMaker.Sessions, localClient.SessionID)
+	//}()
 
 	for {
 		messageType, messageByte, err := conn.ReadMessage()
 		if err != nil {
+			slog.Error("Failed to read message", "error", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			session.CleanUp(localClient.ID)
 			return
 		}
 		session.HandleMessage(messageType, messageByte, localClient.ID)
