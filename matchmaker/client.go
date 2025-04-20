@@ -70,6 +70,8 @@ func (c *Client) HandleMessage(message []byte) {
 
 		c.Hub.Matchmaker.Enqueue(a)
 		c.Hub.Matchmaker.Enqueue(b)
+	default:
+		slog.Error("Unknown message type", "type", messageType.Type)
 	}
 }
 
