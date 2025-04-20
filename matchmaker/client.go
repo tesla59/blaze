@@ -2,6 +2,7 @@ package matchmaker
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/gorilla/websocket"
 	"github.com/tesla59/blaze/types"
 	"log/slog"
@@ -85,8 +86,12 @@ func (c *Client) ReadPump() {
 	for {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
-			slog.Error("Failed to read message", "error", err)
-			c.Send <- ErrorByte(err)
+			var closeErr *websocket.CloseError
+			if errors.As(err, &closeErr) && closeErr.Code == websocket.CloseGoingAway {
+				slog.Info("Client connection closed by peer", "ID", c.ID)
+			} else {
+				slog.Error("Failed to read message", "error", err)
+			}
 			return
 		}
 		c.HandleMessage(message)
