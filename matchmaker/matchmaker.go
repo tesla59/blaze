@@ -56,8 +56,8 @@ func (m *Matchmaker) matchPair(a, b *Client) {
 	b.Peer = a
 	b.State = "matched"
 
-	a.Send <- []byte("matched")
-	b.Send <- []byte("matched")
+	a.Send <- MatchedMessage(b.ID)
+	b.Send <- MatchedMessage(a.ID)
 }
 
 // RemoveFromQueue removes c if it’s still waiting

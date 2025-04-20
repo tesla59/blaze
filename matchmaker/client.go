@@ -38,7 +38,7 @@ func (c *Client) HandleMessage(message []byte) {
 	var messageType types.MessageType
 	if err := json.Unmarshal(message, &messageType); err != nil {
 		slog.Error("Failed to unmarshal message", "error", err)
-		c.Send <- []byte("error: invalid message format")
+		c.Send <- ErrorByte(err)
 		return
 	}
 	slog.Debug("Received message", "message", string(message))
@@ -50,11 +50,14 @@ func (c *Client) HandleMessage(message []byte) {
 		var peerMessage types.Message
 		if err := json.Unmarshal(message, &peerMessage); err != nil {
 			slog.Error("Failed to unmarshal peer message", "error", err)
-			c.Send <- []byte("error: invalid peer message format")
+			c.Send <- ErrorByte(err)
 			return
 		}
 		slog.Debug("Client message", "ID", c.ID, "message", peerMessage.Message)
 		c.Peer.Send <- message
+	case "disconnect":
+		slog.Debug("Client disconnected", "ID", c.ID)
+		c.Hub.Unregister <- c
 	}
 }
 
@@ -69,7 +72,7 @@ func (c *Client) ReadPump() {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			slog.Error("Failed to read message", "error", err)
-			c.Send <- []byte("error: failed to read message")
+			c.Send <- ErrorByte(err)
 			return
 		}
 		c.HandleMessage(message)

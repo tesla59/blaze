@@ -62,21 +62,16 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 
 // getClientFromMessage extracts the client ID from the initial message sent from frontend and returns a new client
 func newClientFromMessage(message []byte, conn *websocket.Conn, h *matchmaker.Hub) (*matchmaker.Client, error) {
-	var messageType types.MessageType
 	slog.Debug("Received messageType", "message", string(message))
-
-	if err := json.Unmarshal(message, &messageType); err != nil {
-		return nil, err
-	}
-
-	if messageType.Type != "identity" {
-		return nil, fmt.Errorf("expected message type: identity, got: %s", messageType.Type)
-	}
 
 	var identityMessage types.IdentityMessage
 
 	if err := json.Unmarshal(message, &identityMessage); err != nil {
 		return nil, err
+	}
+
+	if identityMessage.Type != "identity" {
+		return nil, fmt.Errorf("expected message type: identity, got: %s", identityMessage.Type)
 	}
 
 	return matchmaker.NewClient(identityMessage.ClientID, "waiting", conn, h), nil

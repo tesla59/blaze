@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
+import {getOrCreateClientId} from "@/app/getOrCreateClientId";
 
 export default function Home() {
   const [clientID, setClientID] = useState('');
@@ -26,18 +27,16 @@ export default function Home() {
                 console.log("Received JSON Parsed as:", parsedData);
 
                 switch (parsedData.type) {
-                    case "identity":
-                        setTargetID(parsedData.target);
-                        break;
                     case "message":
                         setMessages((prevMessages) => [...prevMessages, parsedData.message ]);
                         break;
                     case "matched":
-                        setTargetID(parsedData.value);
-                        break;
-                    case "rematch":
                         setMessages([]);
-                        setTargetID(parsedData.value);
+                        setTargetID(parsedData.client_id);
+                        break;
+                    case "disconnected":
+                        setMessages([]);
+                        setTargetID("");
                         break;
                     default:
                         console.warn("Unknown message type:", parsedData.type);
@@ -49,6 +48,7 @@ export default function Home() {
         };
 
         ws.onclose = () => {
+            ws.send(JSON.stringify({ "type": "disconnected" }));
             console.log('WebSocket connection closed');
         };
 
@@ -69,11 +69,17 @@ export default function Home() {
     }
   };
 
-  const handleShuffle = () => {
+  const handleJoin = () => {
     if (socket) {
         socket.send(JSON.stringify({ "type": "join" }));
     }
-  };
+  }
+
+  const handleShuffle = () => {
+      if (socket) {
+          socket.send(JSON.stringify({ "type": "rematch" }));
+      }
+  }
     
   useEffect(() => {
     const id = getOrCreateClientId();
@@ -94,6 +100,7 @@ export default function Home() {
         <p>{targetID}</p>
           <div>
               <button onClick={handleConnect}>Connect</button>
+              <button onClick={handleJoin}>Join</button>
               <button onClick={handleShuffle}>Shuffle</button>
           </div>
           <div style={{marginTop: '20px'}}>
@@ -115,17 +122,3 @@ export default function Home() {
       </div>
   );
 }
-
-const getOrCreateClientId = () => {
-  // Check if we're in a browser environment
-  if (typeof window !== 'undefined') {
-    let clientId = localStorage.getItem('clientId');
-    if (!clientId) {
-      clientId = crypto.randomUUID();
-      localStorage.setItem('clientId', clientId);
-    }
-    return clientId;
-  }
-  // Fallback for server-side rendering
-  return `client-${Date.now()}`;
-};

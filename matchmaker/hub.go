@@ -42,7 +42,7 @@ func (h *Hub) Run() {
 			// Notify and re-enqueue peer if any
 			if client.Peer != nil {
 				peer := client.Peer
-				peer.Send <- []byte("peer disconnected")
+				peer.Send <- DisconnectedMessage()
 				peer.State = "queued"
 				peer.Peer = nil
 				h.Matchmaker.Enqueue(peer)

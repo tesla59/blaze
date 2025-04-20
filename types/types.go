@@ -15,3 +15,17 @@ type Message struct {
 	MessageType
 	Message string `json:"message"`
 }
+
+type DisconnectedMessage struct {
+	MessageType
+}
+
+type ErrorMessage struct {
+	MessageType
+	Error string `json:"error"`
+}
+
+type MatchedMessage struct {
+	MessageType
+	ClientID string `json:"client_id"`
+}
