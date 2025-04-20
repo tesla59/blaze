@@ -3,14 +3,13 @@ package matchmaker
 import (
 	"fmt"
 	"github.com/tesla59/blaze/client"
-	"github.com/tesla59/blaze/session"
 	"log/slog"
 	"sync"
 	"time"
 )
 
 type Matchmaker struct {
-	Sessions map[string]*session.Session
+	Sessions map[string]*Session
 	ClientCh chan *client.Client
 	Mu       sync.Mutex
 }
@@ -18,6 +17,9 @@ type Matchmaker struct {
 var (
 	once sync.Once
 	mm   *Matchmaker
+
+	// ClientQueue chan *client.Client
+	ClientQueue = make(chan *client.Client)
 )
 
 func GetMatchmaker() *Matchmaker {
@@ -29,8 +31,8 @@ func GetMatchmaker() *Matchmaker {
 
 func newMatchmaker() *Matchmaker {
 	return &Matchmaker{
-		Sessions: make(map[string]*session.Session),
-		ClientCh: client.GetClientCh(),
+		Sessions: make(map[string]*Session),
+		ClientCh: ClientQueue,
 		Mu:       sync.Mutex{},
 	}
 }
@@ -40,7 +42,7 @@ func (m *Matchmaker) Start() {
 		newClient := <-m.ClientCh
 		m.Mu.Lock()
 
-		var matchedSession *session.Session
+		var matchedSession *Session
 		var firstClientEmpty bool
 		for _, session := range m.Sessions {
 			if session.Client2.State == "waiting" || session.Client1.State == "waiting" {
@@ -77,14 +79,14 @@ func (m *Matchmaker) Start() {
 				slog.Error("Failed to send match to client", "error", err)
 			}
 			slog.Debug("Matched", "Client", matchedSession.Client1.ID, "with Client", newClient.ID, "Session", matchedSession.ID)
-		} else { // No match found, create new session
+		} else { // No match found, create a new session
 			sessionID := generateSessionID()
 			newClient.State = "waiting"
 			newClient.SessionID = sessionID
 
 			nullClient := client.NullClient(sessionID, newClient.Conn)
 
-			newSession := session.NewSession(sessionID, newClient, &nullClient)
+			newSession := NewSession(sessionID, newClient, &nullClient)
 			m.Sessions[sessionID] = newSession
 			slog.Debug("New session created", "ID", sessionID, "Client", newClient.ID)
 		}

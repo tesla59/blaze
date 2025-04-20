@@ -2,38 +2,17 @@ package config
 
 import (
 	"github.com/spf13/viper"
+	"github.com/tesla59/blaze/types"
 	"strings"
 	"sync"
 )
 
-type (
-	Config struct {
-		Server *Server
-		Db     *Database
-	}
-
-	Server struct {
-		Host string
-		Port string
-	}
-
-	Database struct {
-		Host     string
-		Port     string
-		User     string
-		Password string
-		Dbname   string
-		SSLMode  string
-		TimeZone string
-	}
-)
-
 var (
-	configInstance *Config
+	configInstance *types.Config
 	once           sync.Once
 )
 
-func GetConfig() *Config {
+func GetConfig() *types.Config {
 	once.Do(func() {
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")

@@ -1,20 +1,20 @@
 package server
 
 import (
-	"github.com/tesla59/blaze/config"
 	"github.com/tesla59/blaze/matchmaker"
 	"github.com/tesla59/blaze/server/websocket"
+	"github.com/tesla59/blaze/types"
 	"log/slog"
 	"net/http"
 )
 
 type httpServer struct {
-	cfg        config.Config
+	cfg        *types.Config
 	mux        *http.ServeMux
 	matchmaker *matchmaker.Matchmaker
 }
 
-func NewHTTPServer(cfg config.Config, mm *matchmaker.Matchmaker) Server {
+func NewHTTPServer(cfg *types.Config, mm *matchmaker.Matchmaker) Server {
 	return &httpServer{
 		cfg:        cfg,
 		mux:        http.NewServeMux(),
@@ -30,10 +30,14 @@ func (s *httpServer) Start() error {
 }
 
 func (s *httpServer) registerHandlers() {
-	s.mux.HandleFunc("/", homeHandler)
-	s.mux.HandleFunc("/healthz", healthHandler)
-
-	s.mux.HandleFunc("/ws", websocket.NewWSHandler(s.matchmaker).Handle())
+	handlerMap := map[string]http.HandlerFunc{
+		"/":        homeHandler,
+		"/healthz": healthHandler,
+		"/ws":      websocket.NewWSHandler(s.matchmaker).Handle(),
+	}
+	for path, handler := range handlerMap {
+		s.mux.HandleFunc(path, handler)
+	}
 
 	s.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./view/static"))))
 }

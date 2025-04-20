@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/tesla59/blaze/client"
 	"github.com/tesla59/blaze/matchmaker"
+	"github.com/tesla59/blaze/types"
 	"log/slog"
 	"net/http"
 	"time"
@@ -14,11 +15,6 @@ import (
 type WSHandler struct {
 	Upgrader   websocket.Upgrader
 	MatchMaker *matchmaker.Matchmaker
-}
-
-type Message struct {
-	Type  string `json:"type"`
-	Value string `json:"value"`
 }
 
 func NewWSHandler(mm *matchmaker.Matchmaker) *WSHandler {
@@ -87,7 +83,7 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 
 // getClientFromMessage extracts the client ID from the initial message sent from frontend and returns a new client
 func getClientFromMessage(message []byte, conn *websocket.Conn) (*client.Client, error) {
-	var identityMessage Message
+	var identityMessage types.Message
 	slog.Debug("Received message", "message", string(message))
 
 	if err := json.Unmarshal(message, &identityMessage); err != nil {

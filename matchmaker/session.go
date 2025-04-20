@@ -1,4 +1,4 @@
-package session
+package matchmaker
 
 import (
 	"encoding/json"
@@ -26,17 +26,16 @@ func NewSession(id string, client1, client2 *client.Client) *Session {
 }
 
 func (s *Session) CleanUp(clientID string) {
-	clientCh := client.GetClientCh()
 	if s.Client1.ID == clientID {
 		slog.Debug("Cleaning up session", "session", s.ID, "client", s.Client1.ID)
 		nullClient := client.NullClient(s.ID, s.Client1.Conn)
 		s.Client1 = &nullClient
-		clientCh <- s.Client2
+		ClientQueue <- s.Client2
 	} else {
 		slog.Debug("Cleaning up session", "session", s.ID, "client", s.Client2.ID)
 		nullClient := client.NullClient(s.ID, s.Client2.Conn)
 		s.Client2 = &nullClient
-		clientCh <- s.Client1
+		ClientQueue <- s.Client1
 	}
 }
 
@@ -78,20 +77,18 @@ func (s *Session) handleTextMessage(clientID, message string) {
 }
 
 func (s *Session) handleShuffle() {
-	clientCh := client.GetClientCh()
 	if s.Client1 != nil {
 		s.Client1.State = "waiting"
-		clientCh <- s.Client1
+		ClientQueue <- s.Client1
 	}
 	if s.Client2 != nil {
 		s.Client2.State = "waiting"
-		clientCh <- s.Client2
+		ClientQueue <- s.Client2
 		s.Client2 = nil // Reset client2
 	}
 }
 
 func (s *Session) handleDisconnect(clientID string) {
-	clientCh := client.GetClientCh()
 	resp := map[string]string{
 		"type":  "rematch",
 		"value": "You have disconnected. Waiting for a new match...",
@@ -104,7 +101,7 @@ func (s *Session) handleDisconnect(clientID string) {
 		if err := s.Client2.SendJSON(resp); err != nil {
 			slog.Error("Failed to send rematch message to client 2", "error", err)
 		}
-		clientCh <- s.Client2
+		ClientQueue <- s.Client2
 	} else {
 		nullClient := client.NullClient(s.ID, s.Client2.Conn)
 		s.Client2 = &nullClient
@@ -112,6 +109,6 @@ func (s *Session) handleDisconnect(clientID string) {
 		if err := s.Client1.SendJSON(resp); err != nil {
 			slog.Error("Failed to send rematch message to client 1", "error", err)
 		}
-		clientCh <- s.Client1
+		ClientQueue <- s.Client1
 	}
 }
