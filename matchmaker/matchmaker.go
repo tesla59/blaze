@@ -1,6 +1,7 @@
 package matchmaker
 
 import (
+	"log/slog"
 	"sync"
 )
 
@@ -17,6 +18,7 @@ func NewMatchmaker(queueSize int) *Matchmaker {
 }
 
 func (m *Matchmaker) Enqueue(c *Client) {
+	slog.Debug("Enqueueing client", "ID", c.ID)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -26,7 +28,7 @@ func (m *Matchmaker) Enqueue(c *Client) {
 		if peer.ID == c.ID {
 			continue
 		}
-		if peer.State == "matched" {
+		if peer.State == "queued" {
 			m.queue = m.queue[1:]
 			m.matchPair(c, peer)
 			return
@@ -42,7 +44,10 @@ func (m *Matchmaker) Enqueue(c *Client) {
 
 // matchPair creates a session, ties the two clients together, and notifies them
 func (m *Matchmaker) matchPair(a, b *Client) {
+	slog.Debug("Matched pair", "a", a.ID, "b", b.ID)
+	// Create a session and tie the two clients together
 	session := NewSession(a, b)
+
 	a.Session = session
 	a.Peer = b
 	a.State = "matched"
@@ -55,17 +60,16 @@ func (m *Matchmaker) matchPair(a, b *Client) {
 	b.Send <- []byte("matched")
 }
 
-// RemoveFromQueue discards a client who has disconnected
 // RemoveFromQueue removes c if it’s still waiting
-//func (m *Matchmaker) RemoveFromQueue(c *Client) {
-//	m.mu.Lock()
-//	defer m.mu.Unlock()
-//
-//	for i, queued := range m.queue {
-//		if queued.ID == c.ID {
-//			// drop it out
-//			m.queue = append(m.queue[:i], m.queue[i+1:]...)
-//			break
-//		}
-//	}
-//}
+func (m *Matchmaker) RemoveFromQueue(c *Client) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for i, queued := range m.queue {
+		if queued.ID == c.ID {
+			// drop it out
+			m.queue = append(m.queue[:i], m.queue[i+1:]...)
+			break
+		}
+	}
+}

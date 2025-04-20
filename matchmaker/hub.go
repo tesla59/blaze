@@ -31,6 +31,8 @@ func (h *Hub) Run() {
 
 		case client := <-h.Unregister:
 			h.mu.Lock()
+			// Remove the client from the hub
+			h.Matchmaker.RemoveFromQueue(client)
 			if _, ok := h.clients[client.ID]; ok {
 				delete(h.clients, client.ID)
 				close(client.Send)

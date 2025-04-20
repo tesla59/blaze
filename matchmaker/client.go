@@ -46,6 +46,15 @@ func (c *Client) HandleMessage(message []byte) {
 	case "join":
 		slog.Debug("Client joined", "ID", c.ID)
 		c.Hub.Matchmaker.Enqueue(c)
+	case "message":
+		var peerMessage types.Message
+		if err := json.Unmarshal(message, &peerMessage); err != nil {
+			slog.Error("Failed to unmarshal peer message", "error", err)
+			c.Send <- []byte("error: invalid peer message format")
+			return
+		}
+		slog.Debug("Client message", "ID", c.ID, "message", peerMessage.Message)
+		c.Peer.Send <- message
 	}
 }
 
@@ -70,6 +79,7 @@ func (c *Client) ReadPump() {
 func (c *Client) WritePump() {
 	for msg := range c.Send {
 		if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+			slog.Error("Failed to write message", "error", err)
 			break
 		}
 	}

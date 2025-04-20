@@ -30,7 +30,7 @@ export default function Home() {
                         setTargetID(parsedData.target);
                         break;
                     case "message":
-                        setMessages((prevMessages) => [...prevMessages, parsedData.value ]);
+                        setMessages((prevMessages) => [...prevMessages, parsedData.message ]);
                         break;
                     case "matched":
                         setTargetID(parsedData.value);
@@ -63,7 +63,8 @@ export default function Home() {
 
   const handleSendMessage = () => {
     if (socket && message) {
-      socket.send(JSON.stringify({ "type": "message" , "value": message, clientID, targetID }));
+        console.log("Sending message:", JSON.stringify({ "type": "message" , "message": message }));
+      socket.send(JSON.stringify({ "type": "message" , "message": message}));
       setMessage('');
     }
   };

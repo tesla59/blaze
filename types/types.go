@@ -13,5 +13,5 @@ type IdentityMessage struct {
 
 type Message struct {
 	MessageType
-	Value string `json:"value"`
+	Message string `json:"message"`
 }
