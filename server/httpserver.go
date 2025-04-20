@@ -9,16 +9,16 @@ import (
 )
 
 type httpServer struct {
-	cfg        *types.Config
-	mux        *http.ServeMux
-	matchmaker *matchmaker.Matchmaker
+	cfg *types.Config
+	mux *http.ServeMux
+	hub *matchmaker.Hub
 }
 
-func NewHTTPServer(cfg *types.Config, mm *matchmaker.Matchmaker) Server {
+func NewHTTPServer(cfg *types.Config, hub *matchmaker.Hub) Server {
 	return &httpServer{
-		cfg:        cfg,
-		mux:        http.NewServeMux(),
-		matchmaker: mm,
+		cfg: cfg,
+		mux: http.NewServeMux(),
+		hub: hub,
 	}
 }
 
@@ -33,7 +33,7 @@ func (s *httpServer) registerHandlers() {
 	handlerMap := map[string]http.HandlerFunc{
 		"/":        homeHandler,
 		"/healthz": healthHandler,
-		"/ws":      websocket.NewWSHandler(s.matchmaker).Handle(),
+		"/ws":      websocket.NewWSHandler(s.hub).Handle(),
 	}
 	for path, handler := range handlerMap {
 		s.mux.HandleFunc(path, handler)

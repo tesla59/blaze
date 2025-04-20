@@ -10,10 +10,11 @@ import (
 func main() {
 	cfg := config.GetConfig()
 
-	matchMaker := matchmaker.GetMatchmaker()
-	go matchMaker.Start()
+	matchMaker := matchmaker.NewMatchmaker(100)
+	hub := matchmaker.NewHub(matchMaker)
+	go hub.Run()
 
-	httpServer := server.NewHTTPServer(cfg, matchMaker)
+	httpServer := server.NewHTTPServer(cfg, hub)
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	err := httpServer.Start()

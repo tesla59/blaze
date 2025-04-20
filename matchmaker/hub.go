@@ -1,0 +1,57 @@
+package matchmaker
+
+import (
+	"sync"
+)
+
+type Hub struct {
+	clients    map[string]*Client
+	Register   chan *Client
+	Unregister chan *Client
+	Matchmaker *Matchmaker
+	mu         sync.RWMutex
+}
+
+func NewHub(matchmaker *Matchmaker) *Hub {
+	return &Hub{
+		clients:    make(map[string]*Client),
+		Register:   make(chan *Client),
+		Unregister: make(chan *Client),
+		Matchmaker: matchmaker,
+	}
+}
+
+func (h *Hub) Run() {
+	for {
+		select {
+		case client := <-h.Register:
+			h.mu.Lock()
+			h.clients[client.ID] = client
+			h.mu.Unlock()
+
+		case client := <-h.Unregister:
+			h.mu.Lock()
+			if _, ok := h.clients[client.ID]; ok {
+				delete(h.clients, client.ID)
+				close(client.Send)
+			}
+			h.mu.Unlock()
+
+			// Notify and re-enqueue peer if any
+			if client.Peer != nil {
+				peer := client.Peer
+				peer.Send <- []byte("peer disconnected")
+				peer.State = "queued"
+				peer.Peer = nil
+				h.Matchmaker.Enqueue(peer)
+			}
+		}
+	}
+}
+
+func (h *Hub) GetClientByID(id string) (*Client, bool) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	client, ok := h.clients[id]
+	return client, ok
+}

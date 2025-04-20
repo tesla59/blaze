@@ -17,7 +17,7 @@ export default function Home() {
 
         ws.onopen = () => {
             console.log('Connected to WebSocket');
-            ws.send(JSON.stringify({ "type": "identity", "value": clientID }));
+            ws.send(JSON.stringify({ "type": "identity", "id": clientID }));
         };
 
         ws.onmessage = (event) => {
@@ -32,7 +32,7 @@ export default function Home() {
                     case "message":
                         setMessages((prevMessages) => [...prevMessages, parsedData.value ]);
                         break;
-                    case "match":
+                    case "matched":
                         setTargetID(parsedData.value);
                         break;
                     case "rematch":
@@ -70,7 +70,7 @@ export default function Home() {
 
   const handleShuffle = () => {
     if (socket) {
-        socket.send(JSON.stringify({ "type": "shuffle" }));
+        socket.send(JSON.stringify({ "type": "join" }));
     }
   };
     

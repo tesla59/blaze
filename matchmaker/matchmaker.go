@@ -1,100 +1,71 @@
 package matchmaker
 
 import (
-	"fmt"
-	"github.com/tesla59/blaze/client"
-	"log/slog"
 	"sync"
-	"time"
 )
 
 type Matchmaker struct {
-	Sessions map[string]*Session
-	ClientCh chan *client.Client
-	Mu       sync.Mutex
+	mu    sync.Mutex
+	queue []*Client
 }
 
-var (
-	once sync.Once
-	mm   *Matchmaker
-
-	// ClientQueue chan *client.Client
-	ClientQueue = make(chan *client.Client)
-)
-
-func GetMatchmaker() *Matchmaker {
-	once.Do(func() {
-		mm = newMatchmaker()
-	})
-	return mm
-}
-
-func newMatchmaker() *Matchmaker {
+func NewMatchmaker(queueSize int) *Matchmaker {
 	return &Matchmaker{
-		Sessions: make(map[string]*Session),
-		ClientCh: ClientQueue,
-		Mu:       sync.Mutex{},
+		queue: make([]*Client, 0, queueSize),
+		mu:    sync.Mutex{},
 	}
 }
 
-func (m *Matchmaker) Start() {
-	for {
-		newClient := <-m.ClientCh
-		m.Mu.Lock()
+func (m *Matchmaker) Enqueue(c *Client) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-		var matchedSession *Session
-		var firstClientEmpty bool
-		for _, session := range m.Sessions {
-			if session.Client2.State == "waiting" || session.Client1.State == "waiting" {
-				if session.Client1.State == "waiting" {
-					firstClientEmpty = false
-				} else {
-					firstClientEmpty = true
-				}
-				matchedSession = session
-				break
-			}
+	// Check if the client is already in the queue
+	for len(m.queue) > 0 {
+		peer := m.queue[0]
+		if peer.ID == c.ID {
+			continue
 		}
-
-		if matchedSession != nil { // Match found
-			if firstClientEmpty {
-				matchedSession.Client1 = newClient
-			} else {
-				matchedSession.Client2 = newClient
-			}
-			matchedSession.Client1.State = "matched"
-			matchedSession.Client2.State = "matched"
-			matchedSession.Client1.SessionID = matchedSession.ID
-			matchedSession.Client2.SessionID = matchedSession.ID
-
-			respMessage := map[string]string{
-				"type":  "match",
-				"value": matchedSession.Client1.ID,
-			}
-			if err := matchedSession.Client2.SendJSON(respMessage); err != nil {
-				slog.Error("Failed to send match to client", "error", err)
-			}
-			respMessage["value"] = matchedSession.Client2.ID
-			if err := matchedSession.Client1.SendJSON(respMessage); err != nil {
-				slog.Error("Failed to send match to client", "error", err)
-			}
-			slog.Debug("Matched", "Client", matchedSession.Client1.ID, "with Client", newClient.ID, "Session", matchedSession.ID)
-		} else { // No match found, create a new session
-			sessionID := generateSessionID()
-			newClient.State = "waiting"
-			newClient.SessionID = sessionID
-
-			nullClient := client.NullClient(sessionID, newClient.Conn)
-
-			newSession := NewSession(sessionID, newClient, &nullClient)
-			m.Sessions[sessionID] = newSession
-			slog.Debug("New session created", "ID", sessionID, "Client", newClient.ID)
+		if peer.State == "matched" {
+			m.queue = m.queue[1:]
+			m.matchPair(c, peer)
+			return
 		}
-
-		m.Mu.Unlock()
+		// drop the peer
+		m.queue = m.queue[1:]
 	}
+
+	// Add the client to the queue
+	c.State = "queued"
+	m.queue = append(m.queue, c)
 }
 
-func generateSessionID() string {
-	return fmt.Sprintf("session-%d", time.Now().UnixNano())
+// matchPair creates a session, ties the two clients together, and notifies them
+func (m *Matchmaker) matchPair(a, b *Client) {
+	session := NewSession(a, b)
+	a.Session = session
+	a.Peer = b
+	a.State = "matched"
+
+	b.Session = session
+	b.Peer = a
+	b.State = "matched"
+
+	a.Send <- []byte("matched")
+	b.Send <- []byte("matched")
 }
+
+// RemoveFromQueue discards a client who has disconnected
+// RemoveFromQueue removes c if it’s still waiting
+//func (m *Matchmaker) RemoveFromQueue(c *Client) {
+//	m.mu.Lock()
+//	defer m.mu.Unlock()
+//
+//	for i, queued := range m.queue {
+//		if queued.ID == c.ID {
+//			// drop it out
+//			m.queue = append(m.queue[:i], m.queue[i+1:]...)
+//			break
+//		}
+//	}
+//}

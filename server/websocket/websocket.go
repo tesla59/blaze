@@ -4,27 +4,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
-	"github.com/tesla59/blaze/client"
 	"github.com/tesla59/blaze/matchmaker"
 	"github.com/tesla59/blaze/types"
 	"log/slog"
 	"net/http"
-	"time"
 )
 
 type WSHandler struct {
-	Upgrader   websocket.Upgrader
-	MatchMaker *matchmaker.Matchmaker
+	Upgrader websocket.Upgrader
+	Hub      *matchmaker.Hub
 }
 
-func NewWSHandler(mm *matchmaker.Matchmaker) *WSHandler {
+func NewWSHandler(hub *matchmaker.Hub) *WSHandler {
 	return &WSHandler{
 		Upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true
 			},
 		},
-		MatchMaker: mm,
+		Hub: hub,
 	}
 }
 
@@ -40,7 +38,6 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer conn.Close()
 
 	// Identify the client
 	_, message, err := conn.ReadMessage()
@@ -49,50 +46,38 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	localClient, err := getClientFromMessage(message, conn)
+	localClient, err := newClientFromMessage(message, conn, h.Hub)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	slog.Debug("Client identified", "ID", localClient.ID)
-	h.MatchMaker.ClientCh <- localClient
-	time.Sleep(1 * time.Second)
-	session, ok := h.MatchMaker.Sessions[localClient.SessionID]
-	if !ok {
-		slog.Error("Session not found", "sessionID", localClient.SessionID)
-		return
-	}
 
-	//defer func() {
-	//	session.Mu.Lock()
-	//	defer session.Mu.Unlock()
-	//	delete(h.MatchMaker.Sessions, localClient.SessionID)
-	//}()
+	h.Hub.Register <- localClient
 
-	for {
-		messageType, messageByte, err := conn.ReadMessage()
-		if err != nil {
-			slog.Error("Failed to read message", "error", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			session.CleanUp(localClient.ID)
-			return
-		}
-		session.HandleMessage(messageType, messageByte, localClient.ID)
-	}
+	go localClient.ReadPump()
+	go localClient.WritePump()
 }
 
 // getClientFromMessage extracts the client ID from the initial message sent from frontend and returns a new client
-func getClientFromMessage(message []byte, conn *websocket.Conn) (*client.Client, error) {
-	var identityMessage types.Message
-	slog.Debug("Received message", "message", string(message))
+func newClientFromMessage(message []byte, conn *websocket.Conn, h *matchmaker.Hub) (*matchmaker.Client, error) {
+	var messageType types.MessageType
+	slog.Debug("Received messageType", "message", string(message))
+
+	if err := json.Unmarshal(message, &messageType); err != nil {
+		return nil, err
+	}
+
+	if messageType.Type != "identity" {
+		return nil, fmt.Errorf("expected message type: identity, got: %s", messageType.Type)
+	}
+
+	var identityMessage types.IdentityMessage
 
 	if err := json.Unmarshal(message, &identityMessage); err != nil {
 		return nil, err
 	}
 
-	if identityMessage.Type != "identity" {
-		return nil, fmt.Errorf("expected message type: identity, got: %s", identityMessage.Type)
-	}
-
-	return client.NewClient(identityMessage.Value, "waiting", "", conn), nil
+	return matchmaker.NewClient(identityMessage.ClientID, "waiting", conn, h), nil
 }
