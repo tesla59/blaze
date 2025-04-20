@@ -58,6 +58,18 @@ func (c *Client) HandleMessage(message []byte) {
 	case "disconnect":
 		slog.Debug("Client disconnected", "ID", c.ID)
 		c.Hub.Unregister <- c
+	case "rematch":
+		slog.Debug("Client rematch", "ID", c.ID, "peerID", c.Peer.ID)
+		a, b := c.Peer, c
+		a.Peer = nil
+		b.Peer = nil
+		a.State = "queued"
+		b.State = "queued"
+		a.Send <- DisconnectedMessage()
+		b.Send <- DisconnectedMessage()
+
+		c.Hub.Matchmaker.Enqueue(a)
+		c.Hub.Matchmaker.Enqueue(b)
 	}
 }
 
