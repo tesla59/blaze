@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/tls"
 	"github.com/tesla59/blaze/matchmaker"
 	"github.com/tesla59/blaze/server/websocket"
 	"github.com/tesla59/blaze/types"
@@ -9,24 +10,38 @@ import (
 )
 
 type httpServer struct {
-	cfg *types.Config
-	mux *http.ServeMux
-	hub *matchmaker.Hub
+	cfg    *types.Config
+	mux    *http.ServeMux
+	server *http.Server
+	hub    *matchmaker.Hub
 }
 
 func NewHTTPServer(cfg *types.Config, hub *matchmaker.Hub) Server {
+	mux := http.NewServeMux()
+	serv := &http.Server{
+		Addr:    cfg.Server.Host + ":" + cfg.Server.Port,
+		Handler: mux,
+		TLSConfig: &tls.Config{
+			MinVersion: tls.VersionTLS13,
+		},
+	}
 	return &httpServer{
-		cfg: cfg,
-		mux: http.NewServeMux(),
-		hub: hub,
+		cfg:    cfg,
+		server: serv,
+		mux:    mux,
+		hub:    hub,
 	}
 }
 
 func (s *httpServer) Start() error {
 	s.registerHandlers()
-
 	slog.Info("Starting Server on " + s.cfg.Server.Host + ":" + s.cfg.Server.Port)
-	return http.ListenAndServe(s.cfg.Server.Host+":"+s.cfg.Server.Port, s.mux)
+
+	if s.cfg.Server.SSL.Enabled {
+		return s.server.ListenAndServeTLS(s.cfg.Server.SSL.CertFile, s.cfg.Server.SSL.KeyFile)
+	} else {
+		return s.server.ListenAndServe()
+	}
 }
 
 func (s *httpServer) registerHandlers() {

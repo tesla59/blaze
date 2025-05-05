@@ -9,6 +9,7 @@ type (
 	Server struct {
 		Host string
 		Port string
+		SSL  *SSL
 	}
 
 	Database struct {
@@ -19,5 +20,11 @@ type (
 		Dbname   string
 		SSLMode  string
 		TimeZone string
+	}
+
+	SSL struct {
+		Enabled  bool
+		CertFile string
+		KeyFile  string
 	}
 )

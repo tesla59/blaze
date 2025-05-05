@@ -1,6 +1,10 @@
 server:
   host: 127.0.0.1
   port: 8080
+  ssl:
+    enabled: false
+    certfile: cert.pem
+    keyfile: key.pem
 
 db:
   host: localhost
