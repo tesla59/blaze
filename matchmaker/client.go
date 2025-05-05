@@ -71,6 +71,14 @@ func (c *Client) HandleMessage(message []byte) {
 
 		c.Hub.Matchmaker.Enqueue(a)
 		c.Hub.Matchmaker.Enqueue(b)
+	case "sdp-offer", "sdp-answer", "ice-candidate":
+		if c.Peer != nil {
+			slog.Debug("Forwarding message to peer", "peerID", c.Peer.ID, "message", string(message))
+			c.Peer.Send <- message
+		} else {
+			slog.Error("No peer to forward message to", "ID", c.ID)
+			c.Send <- ErrorByte(errors.New("no peer connected"))
+		}
 	default:
 		slog.Error("Unknown message type", "type", messageType.Type)
 	}
