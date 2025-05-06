@@ -62,15 +62,19 @@ func (c *Client) HandleMessage(message []byte) {
 	case "rematch":
 		slog.Debug("Client rematch", "ID", c.ID, "peerID", c.Peer.ID)
 		a, b := c.Peer, c
-		a.Peer = nil
-		b.Peer = nil
-		a.State = "queued"
-		b.State = "queued"
-		a.Send <- DisconnectedMessage()
-		b.Send <- DisconnectedMessage()
-
-		c.Hub.Matchmaker.Enqueue(a)
-		c.Hub.Matchmaker.Enqueue(b)
+		if a != nil {
+			a.Session = nil
+			a.Peer = nil
+			a.State = "queued"
+			a.Send <- DisconnectedMessage()
+			c.Hub.Matchmaker.Enqueue(a)
+		}
+		if b != nil {
+			b.Peer = nil
+			b.State = "queued"
+			b.Send <- DisconnectedMessage()
+			c.Hub.Matchmaker.Enqueue(b)
+		}
 	case "sdp-offer", "sdp-answer", "ice-candidate":
 		if c.Peer != nil {
 			slog.Debug("Forwarding message to peer", "peerID", c.Peer.ID, "message", string(message))
