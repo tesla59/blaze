@@ -38,7 +38,7 @@ func NewClient(id, state string, conn *websocket.Conn, h *Hub) *Client {
 func (c *Client) HandleMessage(message []byte) {
 	var messageType types.MessageType
 	if err := json.Unmarshal(message, &messageType); err != nil {
-		slog.Error("Failed to unmarshal message", "error", err)
+		slog.Error("Failed to unmarshal message", "ID", c.ID, "error", err)
 		c.Send <- ErrorByte(err)
 		return
 	}
@@ -50,7 +50,7 @@ func (c *Client) HandleMessage(message []byte) {
 	case "message":
 		var peerMessage types.Message
 		if err := json.Unmarshal(message, &peerMessage); err != nil {
-			slog.Error("Failed to unmarshal peer message", "error", err)
+			slog.Error("Failed to unmarshal peer message", "ID", c.ID, "error", err)
 			c.Send <- ErrorByte(err)
 			return
 		}
@@ -77,14 +77,14 @@ func (c *Client) HandleMessage(message []byte) {
 		}
 	case "sdp-offer", "sdp-answer", "ice-candidate":
 		if c.Peer != nil {
-			slog.Debug("Forwarding message to peer", "peerID", c.Peer.ID, "message", string(message))
+			slog.Debug("Forwarding message to peer", "peerID", c.Peer.ID, "type", messageType.Type)
 			c.Peer.Send <- message
 		} else {
 			slog.Error("No peer to forward message to", "ID", c.ID)
 			c.Send <- ErrorByte(errors.New("no peer connected"))
 		}
 	default:
-		slog.Error("Unknown message type", "type", messageType.Type)
+		slog.Error("Unknown message type", "ID", c.ID, "type", messageType.Type)
 	}
 }
 
@@ -102,7 +102,7 @@ func (c *Client) ReadPump() {
 			if errors.As(err, &closeErr) && closeErr.Code == websocket.CloseGoingAway {
 				slog.Info("Client connection closed by peer", "ID", c.ID)
 			} else {
-				slog.Error("Failed to read message", "error", err)
+				slog.Error("Failed to read message", "ID", c.ID, "error", err)
 			}
 			return
 		}
@@ -113,7 +113,7 @@ func (c *Client) ReadPump() {
 func (c *Client) WritePump() {
 	for msg := range c.Send {
 		if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-			slog.Error("Failed to write message", "error", err)
+			slog.Error("Failed to write message", "ID", c.ID, "error", err)
 			break
 		}
 	}
