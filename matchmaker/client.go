@@ -60,7 +60,7 @@ func (c *Client) HandleMessage(message []byte) {
 		slog.Debug("Client disconnected", "ID", c.ID)
 		c.Hub.Unregister <- c
 	case "rematch":
-		slog.Debug("Client rematch", "ID", c.ID, "peerID", c.Peer.ID)
+		slog.Debug("Client rematch", "ID", c.ID)
 		a, b := c.Peer, c
 		if a != nil {
 			a.Session = nil
