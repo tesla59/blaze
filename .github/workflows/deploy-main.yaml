@@ -43,10 +43,10 @@ jobs:
           context: .
           push: true
           tags: |
-              $DOCKER_IMAGE:latest
-              $DOCKER_IMAGE:${{ steps.version.outputs.version }}
-          cache-from: type=registry,ref=$DOCKER_IMAGE:buildcache
-          cache-to: type=registry,ref=$DOCKER_IMAGE:buildcache,mode=max
+              ${{ env.DOCKER_IMAGE }}:latest
+              ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1
@@ -55,11 +55,11 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            docker pull $DOCKER_IMAGE:${{ steps.version.outputs.version }}
-            docker stop $PROJECT_NAME || true
-            docker rm $PROJECT_NAME || true
+            docker pull ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
+            docker stop ${{ env.PROJECT_NAME }} || true
+            docker rm ${{ env.PROJECT_NAME }} || true
             docker run -d \
-              --name $PROJECT_NAME \
+              --name ${{ env.PROJECT_NAME }} \
               --restart unless-stopped \
-              -p $HOST_PORT:$TARGET_PORT \
-              $DOCKER_IMAGE:${{ steps.version.outputs.version }}
+              -p ${{ env.HOST_PORT }}:${{ env.TARGET_PORT }} \
+              ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
