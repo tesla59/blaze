@@ -8,7 +8,7 @@ env:
   PROJECT_NAME: blaze
   HOST_PORT: 5000
   TARGET_PORT: 8080
-  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.PROJECT_NAME }}
+  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/$PROJECT_NAME
 
 jobs:
   build:
@@ -43,10 +43,10 @@ jobs:
           context: .
           push: true
           tags: |
-              ${{ env.DOCKER_IMAGE }}:latest
-              ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
-          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
+              $DOCKER_IMAGE:latest
+              $DOCKER_IMAGE:${{ steps.version.outputs.version }}
+          cache-from: type=registry,ref=$DOCKER_IMAGE:buildcache
+          cache-to: type=registry,ref=$DOCKER_IMAGE:buildcache,mode=max
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1
@@ -55,11 +55,11 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            docker pull ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
-            docker stop ${{ env.PROJECT_NAME }} || true
-            docker rm ${{ env.PROJECT_NAME }} || true
+            docker pull $DOCKER_IMAGE:${{ steps.version.outputs.version }}
+            docker stop $PROJECT_NAME || true
+            docker rm $PROJECT_NAME || true
             docker run -d \
-              --name ${{ env.PROJECT_NAME }} \
+              --name $PROJECT_NAME \
               --restart unless-stopped \
-              -p ${{ env.HOST_PORT }}:${{ env.TARGET_PORT }} \
-              ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
+              -p $HOST_PORT:$TARGET_PORT \
+              $DOCKER_IMAGE:${{ steps.version.outputs.version }}
