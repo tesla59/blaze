@@ -6,6 +6,21 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/tesla59/blaze/types"
 	"log/slog"
+	"time"
+)
+
+const (
+	// writeWait is the time allowed to write a message to the peer.
+	writeWait = 10 * time.Second
+
+	// pongWait is the time allowed to read the next pong message from the peer.
+	pongWait = 60 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = (pongWait * 9) / 10
+
+	// Maximum message size allowed from peer.
+	maxMessageSize = 1024 * 1024
 )
 
 type Client struct {
@@ -95,6 +110,14 @@ func (c *Client) ReadPump() {
 		c.Conn.Close()
 	}()
 
+	c.Conn.SetReadLimit(maxMessageSize)
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetPongHandler(func(string) error {
+		slog.Debug("Received pong", "ID", c.ID)
+		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
 	for {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
@@ -111,10 +134,48 @@ func (c *Client) ReadPump() {
 }
 
 func (c *Client) WritePump() {
-	for msg := range c.Send {
-		if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-			slog.Error("Failed to write message", "ID", c.ID, "error", err)
-			break
+	ticker := time.NewTicker(pingPeriod)
+
+	defer func() {
+		ticker.Stop()
+		c.Hub.Unregister <- c
+		c.Conn.Close()
+	}()
+
+	for {
+		select {
+		case message, ok := <-c.Send:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				// The hub closed the channel.
+				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			w, err := c.Conn.NextWriter(websocket.TextMessage)
+			if err != nil {
+				slog.Error("Failed to get next writer", "ID", c.ID, "error", err)
+				return
+			}
+			if _, err := w.Write(message); err != nil {
+				slog.Error("Failed to write message", "ID", c.ID, "error", err)
+				return
+			}
+			// Add queued chat messages to the current websocket message
+			n := len(c.Send)
+			for i := 0; i < n; i++ {
+				w.Write([]byte{'\n'})
+				w.Write(<-c.Send)
+			}
+			if err := w.Close(); err != nil {
+				slog.Error("Failed to close writer", "ID", c.ID, "error", err)
+				return
+			}
+		case <-ticker.C:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				slog.Error("Failed to write ping message", "ID", c.ID, "error", err)
+				return
+			}
 		}
 	}
 }
