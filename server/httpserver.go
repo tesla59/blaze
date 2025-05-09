@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/tls"
 	"github.com/tesla59/blaze/matchmaker"
+	serveMatchmaker "github.com/tesla59/blaze/server/matchmaker"
 	"github.com/tesla59/blaze/server/websocket"
 	"github.com/tesla59/blaze/types"
 	"log/slog"
@@ -49,6 +50,7 @@ func (s *httpServer) registerHandlers() {
 		"/":        homeHandler,
 		"/healthz": healthHandler,
 		"/ws":      websocket.NewWSHandler(s.hub).Handle(),
+		"/queue":   serveMatchmaker.NewQueueStateHandler(s.hub.Matchmaker).Handle(),
 	}
 	for path, handler := range handlerMap {
 		s.mux.HandleFunc(path, handler)

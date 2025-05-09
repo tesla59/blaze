@@ -73,3 +73,17 @@ func (m *Matchmaker) RemoveFromQueue(c *Client) {
 		}
 	}
 }
+
+func (m *Matchmaker) GetQueueState() []map[string]string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	queueState := make([]map[string]string, len(m.queue))
+	for i, client := range m.queue {
+		queueState[i] = map[string]string{
+			"ID":    client.ID,
+			"State": client.State,
+		}
+	}
+	return queueState
+}
