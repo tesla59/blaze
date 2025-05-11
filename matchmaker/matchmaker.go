@@ -23,18 +23,21 @@ func (m *Matchmaker) Enqueue(c *Client) {
 	defer m.mu.Unlock()
 
 	// Check if the client is already in the queue
-	for len(m.queue) > 0 {
-		peer := m.queue[0]
-		if peer.ID == c.ID {
-			continue
+	for _, queued := range m.queue {
+		if queued.ID == c.ID {
+			slog.Debug("Client already in queue", "ID", c.ID)
+			return
 		}
-		if peer.State == "queued" {
-			m.queue = m.queue[1:]
+	}
+
+	// Match with the first available peer
+	for i, peer := range m.queue {
+		if peer.State == "queued" && peer.ID != c.ID {
+			// Remove the peer from the queue
+			m.queue = append(m.queue[:i], m.queue[i+1:]...)
 			m.matchPair(c, peer)
 			return
 		}
-		// drop the peer
-		m.queue = m.queue[1:]
 	}
 
 	// Add the client to the queue
