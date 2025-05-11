@@ -53,7 +53,7 @@ func NewClient(id, state string, conn *websocket.Conn, h *Hub) *Client {
 func (c *Client) HandleMessage(message []byte) {
 	var messageType types.MessageType
 	if err := json.Unmarshal(message, &messageType); err != nil {
-		slog.Error("Failed to unmarshal message", "ID", c.ID, "error", err)
+		slog.Error("Failed to unmarshal received message", "ID", c.ID, "message", string(message), "error", err)
 		c.Send <- ErrorByte(err)
 		return
 	}
@@ -159,12 +159,6 @@ func (c *Client) WritePump() {
 			if _, err := w.Write(message); err != nil {
 				slog.Error("Failed to write message", "ID", c.ID, "error", err)
 				return
-			}
-			// Add queued chat messages to the current websocket message
-			n := len(c.Send)
-			for i := 0; i < n; i++ {
-				w.Write([]byte{'\n'})
-				w.Write(<-c.Send)
 			}
 			if err := w.Close(); err != nil {
 				slog.Error("Failed to close writer", "ID", c.ID, "error", err)
