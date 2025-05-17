@@ -70,6 +70,11 @@ func (c *Client) HandleMessage(message []byte) {
 			return
 		}
 		slog.Debug("Client message", "ID", c.ID, "message", peerMessage.Message)
+		if c.Peer == nil {
+			slog.Error("No peer to send message to", "ID", c.ID)
+			c.Send <- ErrorByte(errors.New("no peer connected"))
+			return
+		}
 		c.Peer.Send <- message
 	case "disconnect":
 		slog.Debug("Client disconnected", "ID", c.ID)
