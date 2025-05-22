@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tesla59/blaze/matchmaker"
 	"github.com/tesla59/blaze/types"
 	"log/slog"
@@ -13,9 +14,10 @@ import (
 type WSHandler struct {
 	Upgrader websocket.Upgrader
 	Hub      *matchmaker.Hub
+	DB       *pgxpool.Pool
 }
 
-func NewWSHandler(hub *matchmaker.Hub) *WSHandler {
+func NewWSHandler(hub *matchmaker.Hub, pool *pgxpool.Pool) *WSHandler {
 	return &WSHandler{
 		Upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
@@ -23,6 +25,7 @@ func NewWSHandler(hub *matchmaker.Hub) *WSHandler {
 			},
 		},
 		Hub: hub,
+		DB:  pool,
 	}
 }
 

@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/tls"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tesla59/blaze/matchmaker"
 	serveMatchmaker "github.com/tesla59/blaze/server/matchmaker"
 	"github.com/tesla59/blaze/server/websocket"
@@ -15,9 +16,10 @@ type httpServer struct {
 	mux    *http.ServeMux
 	server *http.Server
 	hub    *matchmaker.Hub
+	db     *pgxpool.Pool
 }
 
-func NewHTTPServer(cfg *types.Config, hub *matchmaker.Hub) Server {
+func NewHTTPServer(cfg *types.Config, hub *matchmaker.Hub, pool *pgxpool.Pool) Server {
 	mux := http.NewServeMux()
 	serv := &http.Server{
 		Addr:    cfg.Server.Host + ":" + cfg.Server.Port,
@@ -31,6 +33,7 @@ func NewHTTPServer(cfg *types.Config, hub *matchmaker.Hub) Server {
 		server: serv,
 		mux:    mux,
 		hub:    hub,
+		db:     pool,
 	}
 }
 
@@ -49,7 +52,7 @@ func (s *httpServer) registerHandlers() {
 	handlerMap := map[string]http.HandlerFunc{
 		"/":        homeHandler,
 		"/healthz": healthHandler,
-		"/ws":      websocket.NewWSHandler(s.hub).Handle(),
+		"/ws":      websocket.NewWSHandler(s.hub, s.db).Handle(),
 		"/queue":   serveMatchmaker.NewQueueStateHandler(s.hub.Matchmaker).Handle(),
 	}
 	for path, handler := range handlerMap {
