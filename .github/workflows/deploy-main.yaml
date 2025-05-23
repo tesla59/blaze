@@ -65,8 +65,10 @@ jobs:
             docker pull ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
             docker stop ${{ env.PROJECT_NAME }} || true
             docker rm ${{ env.PROJECT_NAME }} || true
+            echo '${{ secrets.ENV }}' > .env
             docker run -d \
               --name ${{ env.PROJECT_NAME }} \
               --restart unless-stopped \
               -p ${{ env.HOST_PORT }}:${{ env.TARGET_PORT }} \
+              --env-file .env \
               ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
