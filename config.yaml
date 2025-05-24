@@ -5,6 +5,7 @@ server:
     enabled: false
     certfile: cert.pem
     keyfile: key.pem
+  secret_key: tesla59
 
 db:
   host: localhost

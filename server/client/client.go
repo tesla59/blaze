@@ -7,14 +7,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/tesla59/blaze/config"
 	"github.com/tesla59/blaze/models"
 	"github.com/tesla59/blaze/repository"
 	"github.com/tesla59/blaze/service"
 	"log/slog"
 	"net/http"
 )
-
-const secret = "tesla"
 
 // Handler handles client-related operations.
 type Handler struct {
@@ -65,7 +64,7 @@ func (c *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	client.Token = signUser(client.ID, client.UUID, client.UserName, secret)
+	client.Token = signUser(client.ID, client.UUID, client.UserName, config.GetConfig().Server.Secret)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -83,7 +82,7 @@ func (c *Handler) verifyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify the token
-	expectedToken := signUser(client.ID, client.UUID, client.UserName, secret)
+	expectedToken := signUser(client.ID, client.UUID, client.UserName, config.GetConfig().Server.Secret)
 	if client.Token != expectedToken {
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return

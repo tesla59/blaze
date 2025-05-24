@@ -7,9 +7,10 @@ type (
 	}
 
 	Server struct {
-		Host string
-		Port string
-		SSL  *SSL
+		Host   string
+		Port   string
+		SSL    *SSL
+		Secret string
 	}
 
 	Database struct {
