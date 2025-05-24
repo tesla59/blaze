@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/tesla59/blaze/config"
 	"github.com/tesla59/blaze/matchmaker"
 	"github.com/tesla59/blaze/repository"
 	"github.com/tesla59/blaze/service"
 	"github.com/tesla59/blaze/types"
 	"log/slog"
 	"net/http"
+	"slices"
 )
 
 type WSHandler struct {
@@ -24,6 +26,16 @@ func NewWSHandler(hub *matchmaker.Hub, pool *pgxpool.Pool) *WSHandler {
 	return &WSHandler{
 		Upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
+				cfg := config.GetConfig()
+				if cfg.Environment == "production" {
+					origin := r.Header.Get("Origin")
+					if slices.Contains(cfg.Server.AllowedOrigins, origin) {
+						return true
+					} else {
+						slog.Warn("Origin not allowed", "origin", origin, "allowedOrigins", cfg.Server.AllowedOrigins)
+						return false
+					}
+				}
 				return true
 			},
 		},

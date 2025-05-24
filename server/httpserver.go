@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/tls"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/tesla59/blaze/config"
 	"github.com/tesla59/blaze/matchmaker"
 	"github.com/tesla59/blaze/server/client"
 	serveMatchmaker "github.com/tesla59/blaze/server/matchmaker"
@@ -10,6 +11,7 @@ import (
 	"github.com/tesla59/blaze/types"
 	"log/slog"
 	"net/http"
+	"slices"
 )
 
 type httpServer struct {
@@ -69,9 +71,21 @@ func (s *httpServer) registerHandlers() {
 // corsMiddleware is a middleware function that adds CORS headers to the response.
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		allowedOrigins := config.GetConfig().Server.AllowedOrigins
+
+		if origin == "" || !slices.Contains(allowedOrigins, origin) {
+			slog.Warn("Origin not allowed", "origin", origin, "allowedOrigins", allowedOrigins)
+			http.Error(w, "Origin not allowed", http.StatusForbidden)
+			return
+		}
+
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Vary", "Origin") // important for caching proxies
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusNoContent)
 			return

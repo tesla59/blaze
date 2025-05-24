@@ -6,6 +6,8 @@ server:
     certfile: cert.pem
     keyfile: key.pem
   secret_key: tesla59
+  allowed_origins:
+    - http://localhost:3000
 
 db:
   host: localhost
@@ -15,3 +17,5 @@ db:
   dbname: cadet
   sslmode: disable
   timezone: Asia/Kolkata
+
+environment: development
