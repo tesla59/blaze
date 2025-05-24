@@ -1,6 +1,7 @@
 package matchmaker
 
 import (
+	"strconv"
 	"sync"
 )
 
@@ -26,15 +27,15 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.Register:
 			h.mu.Lock()
-			h.clients[client.ID] = client
+			h.clients[strconv.Itoa(client.ID)] = client
 			h.mu.Unlock()
 
 		case client := <-h.Unregister:
 			h.mu.Lock()
 			// Remove the client from the hub
 			h.Matchmaker.RemoveFromQueue(client)
-			if _, ok := h.clients[client.ID]; ok {
-				delete(h.clients, client.ID)
+			if _, ok := h.clients[strconv.Itoa(client.ID)]; ok {
+				delete(h.clients, strconv.Itoa(client.ID))
 				close(client.Send)
 			}
 			h.mu.Unlock()

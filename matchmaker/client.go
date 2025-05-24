@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/gorilla/websocket"
+	"github.com/tesla59/blaze/models"
 	"github.com/tesla59/blaze/types"
 	"log/slog"
 	"time"
@@ -24,7 +25,7 @@ const (
 )
 
 type Client struct {
-	ID    string
+	*models.Client
 	State string
 
 	Session *Session
@@ -37,9 +38,9 @@ type Client struct {
 	Peer *Client
 }
 
-func NewClient(id, state string, conn *websocket.Conn, h *Hub) *Client {
+func NewClient(c *models.Client, state string, conn *websocket.Conn, h *Hub) *Client {
 	return &Client{
-		ID:      id,
+		Client:  c,
 		State:   state,
 		Session: nil,
 		Hub:     h,

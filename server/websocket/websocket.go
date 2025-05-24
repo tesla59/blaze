@@ -6,15 +6,18 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tesla59/blaze/matchmaker"
+	"github.com/tesla59/blaze/repository"
+	"github.com/tesla59/blaze/service"
 	"github.com/tesla59/blaze/types"
 	"log/slog"
 	"net/http"
 )
 
 type WSHandler struct {
-	Upgrader websocket.Upgrader
-	Hub      *matchmaker.Hub
-	DB       *pgxpool.Pool
+	Upgrader      websocket.Upgrader
+	Hub           *matchmaker.Hub
+	DB            *pgxpool.Pool
+	ClientService *service.ClientService
 }
 
 func NewWSHandler(hub *matchmaker.Hub, pool *pgxpool.Pool) *WSHandler {
@@ -24,8 +27,9 @@ func NewWSHandler(hub *matchmaker.Hub, pool *pgxpool.Pool) *WSHandler {
 				return true
 			},
 		},
-		Hub: hub,
-		DB:  pool,
+		Hub:           hub,
+		DB:            pool,
+		ClientService: service.NewClientService(repository.NewClientRepository(pool)),
 	}
 }
 
@@ -63,19 +67,25 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 	go localClient.WritePump()
 }
 
-// getClientFromMessage extracts the client ID from the initial message sent from frontend and returns a new client
+// newClientFromMessage creates a new client from the initial message sent from the frontend.
 func newClientFromMessage(message []byte, conn *websocket.Conn, h *matchmaker.Hub) (*matchmaker.Client, error) {
 	slog.Debug("Received messageType", "message", string(message))
 
 	var identityMessage types.IdentityMessage
 
 	if err := json.Unmarshal(message, &identityMessage); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal identity message: %w", err)
 	}
 
 	if identityMessage.Type != "identity" {
 		return nil, fmt.Errorf("expected message type: identity, got: %s", identityMessage.Type)
 	}
 
-	return matchmaker.NewClient(identityMessage.ClientID, "waiting", conn, h), nil
+	if identityMessage.Client == nil {
+		return nil, fmt.Errorf("client is nil")
+	}
+
+	client := matchmaker.NewClient(identityMessage.Client, "waiting", conn, h)
+
+	return client, nil
 }

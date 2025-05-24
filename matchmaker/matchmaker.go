@@ -2,6 +2,7 @@ package matchmaker
 
 import (
 	"log/slog"
+	"strconv"
 	"sync"
 )
 
@@ -59,8 +60,8 @@ func (m *Matchmaker) matchPair(a, b *Client) {
 	b.Peer = a
 	b.State = "matched"
 
-	a.Send <- MatchedMessage(b.ID)
-	b.Send <- MatchedMessage(a.ID)
+	a.Send <- MatchedMessage(b)
+	b.Send <- MatchedMessage(a)
 }
 
 // RemoveFromQueue removes c if it’s still waiting
@@ -84,7 +85,7 @@ func (m *Matchmaker) GetQueueState() []map[string]string {
 	queueState := make([]map[string]string, len(m.queue))
 	for i, client := range m.queue {
 		queueState[i] = map[string]string{
-			"ID":    client.ID,
+			"ID":    strconv.Itoa(client.ID),
 			"State": client.State,
 		}
 	}

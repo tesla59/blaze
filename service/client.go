@@ -34,3 +34,12 @@ func (s *ClientService) RegisterClient(ctx context.Context) (*models.Client, err
 	}
 	return client, nil
 }
+
+// GetClient retrieves a client by its ID.
+func (s *ClientService) GetClient(ctx context.Context, id int) (*models.Client, error) {
+	client, err := s.repo.GetClientByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}

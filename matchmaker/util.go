@@ -2,6 +2,7 @@ package matchmaker
 
 import (
 	"encoding/json"
+	"github.com/tesla59/blaze/models"
 	"github.com/tesla59/blaze/types"
 )
 
@@ -26,12 +27,17 @@ func ErrorByte(err error) []byte {
 	return message
 }
 
-func MatchedMessage(clientID string) []byte {
+func MatchedMessage(peer *Client) []byte {
+	peerClient := models.Client{
+		ID:       peer.ID,
+		UUID:     peer.UUID,
+		UserName: peer.UserName,
+	}
 	msg := types.MatchedMessage{
 		MessageType: types.MessageType{
 			Type: "matched",
 		},
-		ClientID: clientID,
+		Client: peerClient,
 	}
 	message, _ := json.Marshal(msg)
 	return message

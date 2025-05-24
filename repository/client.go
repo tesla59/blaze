@@ -33,8 +33,13 @@ func (c clientRepository) Create(ctx context.Context, client *models.Client) err
 }
 
 func (c clientRepository) GetClientByID(ctx context.Context, id int) (*models.Client, error) {
-	//TODO implement me
-	panic("implement me")
+	query := `SELECT id, uuid, username FROM clients WHERE id = $1`
+	client := &models.Client{}
+	err := c.db.QueryRow(ctx, query, id).Scan(&client.ID, &client.UUID, &client.UserName)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 func (c clientRepository) GetClientByUUID(ctx context.Context, uuid string) (*models.Client, error) {
