@@ -7,11 +7,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/tesla59/blaze/models"
 	"github.com/tesla59/blaze/repository"
 	"github.com/tesla59/blaze/service"
 	"log/slog"
 	"net/http"
 )
+
+const secret = "tesla"
 
 // Handler handles client-related operations.
 type Handler struct {
@@ -33,7 +36,12 @@ func (c *Handler) Handle(method string) http.HandlerFunc {
 	switch method {
 	case "POST":
 		return func(w http.ResponseWriter, r *http.Request) {
-			c.postHandler(w, r)
+			switch r.URL.Path {
+			case "/api/v1/client":
+				c.postHandler(w, r)
+			case "/api/v1/client/verify":
+				c.verifyHandler(w, r)
+			}
 		}
 	case "GET":
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +65,7 @@ func (c *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	client.Token = signUser(client.ID, client.UUID, client.UserName, "tesla")
+	client.Token = signUser(client.ID, client.UUID, client.UserName, secret)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -65,6 +73,24 @@ func (c *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("Error encoding response", "client", client, "error", err)
 	}
+}
+
+func (c *Handler) verifyHandler(w http.ResponseWriter, r *http.Request) {
+	var client models.Client
+	if err := json.NewDecoder(r.Body).Decode(&client); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Verify the token
+	expectedToken := signUser(client.ID, client.UUID, client.UserName, secret)
+	if client.Token != expectedToken {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Token verified successfully\n"))
 }
 
 func signUser(id int, uuid, username, secret string) string {
