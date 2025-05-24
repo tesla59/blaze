@@ -24,7 +24,7 @@ func NewHTTPServer(cfg *types.Config, hub *matchmaker.Hub, pool *pgxpool.Pool) S
 	mux := http.NewServeMux()
 	serv := &http.Server{
 		Addr:    cfg.Server.Host + ":" + cfg.Server.Port,
-		Handler: mux,
+		Handler: corsMiddleware(mux),
 		TLSConfig: &tls.Config{
 			MinVersion: tls.VersionTLS13,
 		},
@@ -64,4 +64,18 @@ func (s *httpServer) registerHandlers() {
 	}
 
 	s.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./view/static"))))
+}
+
+// corsMiddleware is a middleware function that adds CORS headers to the response.
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
