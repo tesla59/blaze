@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tesla59/blaze/matchmaker"
+	"github.com/tesla59/blaze/server/client"
 	serveMatchmaker "github.com/tesla59/blaze/server/matchmaker"
 	"github.com/tesla59/blaze/server/websocket"
 	"github.com/tesla59/blaze/types"
@@ -50,10 +51,12 @@ func (s *httpServer) Start() error {
 
 func (s *httpServer) registerHandlers() {
 	handlerMap := map[string]http.HandlerFunc{
-		"/":        homeHandler,
-		"/healthz": healthHandler,
-		"/ws":      websocket.NewWSHandler(s.hub, s.db).Handle(),
-		"/queue":   serveMatchmaker.NewQueueStateHandler(s.hub.Matchmaker).Handle(),
+		"/":                   homeHandler,
+		"/healthz":            healthHandler,
+		"/ws":                 websocket.NewWSHandler(s.hub, s.db).Handle(),
+		"/queue":              serveMatchmaker.NewQueueStateHandler(s.hub.Matchmaker).Handle(),
+		"POST /api/v1/client": client.NewClientHandler(s.db).Handle("POST"),
+		"GET /api/v1/client":  client.NewClientHandler(s.db).Handle("GET"),
 	}
 	for path, handler := range handlerMap {
 		s.mux.HandleFunc(path, handler)
