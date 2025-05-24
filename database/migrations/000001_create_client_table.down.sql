@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS clients;
+DROP EXTENSION IF EXISTS "uuid-ossp";
