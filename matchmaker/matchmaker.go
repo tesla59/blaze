@@ -1,7 +1,7 @@
 package matchmaker
 
 import (
-	"log/slog"
+	"github.com/tesla59/blaze/log"
 	"strconv"
 	"sync"
 )
@@ -19,14 +19,14 @@ func NewMatchmaker(queueSize int) *Matchmaker {
 }
 
 func (m *Matchmaker) Enqueue(c *Client) {
-	slog.Debug("Enqueueing client", "ID", c.ID)
+	log.Logger.Info("Enqueueing client", "ID", c.ID)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	// Check if the client is already in the queue
 	for _, queued := range m.queue {
 		if queued.ID == c.ID {
-			slog.Debug("Client already in queue", "ID", c.ID)
+			log.Logger.Info("Client already in queue", "ID", c.ID)
 			return
 		}
 	}
@@ -48,7 +48,7 @@ func (m *Matchmaker) Enqueue(c *Client) {
 
 // matchPair creates a session, ties the two clients together, and notifies them
 func (m *Matchmaker) matchPair(a, b *Client) {
-	slog.Debug("Matched pair", "a", a.ID, "b", b.ID)
+	log.Logger.Info("Matched pair", "a", a.ID, "b", b.ID)
 	// Create a session and tie the two clients together
 	session := NewSession(a, b)
 

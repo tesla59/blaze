@@ -1,12 +1,13 @@
 package matchmaker
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/gorilla/websocket"
+	"github.com/tesla59/blaze/log"
 	"github.com/tesla59/blaze/models"
 	"github.com/tesla59/blaze/types"
-	"log/slog"
 	"time"
 )
 
@@ -51,37 +52,37 @@ func NewClient(c *models.Client, state string, conn *websocket.Conn, h *Hub) *Cl
 }
 
 // HandleMessage handles incoming messages from the client
-func (c *Client) HandleMessage(message []byte) {
+func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 	var messageType types.MessageType
 	if err := json.Unmarshal(message, &messageType); err != nil {
-		slog.Error("Failed to unmarshal received message", "ID", c.ID, "message", string(message), "error", err)
+		log.WithContext(ctx).Error("Failed to unmarshal received message", "message", string(message), "error", err)
 		c.Send <- ErrorByte(err)
 		return
 	}
-	slog.Debug("Received message", "message", string(message))
+	log.WithContext(ctx).Debug("Received message", "message", string(message))
 	switch messageType.Type {
 	case "join":
-		slog.Debug("Client joined", "ID", c.ID)
+		log.WithContext(ctx).Debug("Client joined")
 		c.Hub.Matchmaker.Enqueue(c)
 	case "message":
 		var peerMessage types.Message
 		if err := json.Unmarshal(message, &peerMessage); err != nil {
-			slog.Error("Failed to unmarshal peer message", "ID", c.ID, "error", err)
+			log.WithContext(ctx).Error("Failed to unmarshal peer message", "error", err)
 			c.Send <- ErrorByte(err)
 			return
 		}
-		slog.Debug("Client message", "ID", c.ID, "message", peerMessage.Message)
+		log.WithContext(ctx).Info("Forwarding message", "message", peerMessage.Message)
 		if c.Peer == nil {
-			slog.Error("No peer to send message to", "ID", c.ID)
+			log.WithContext(ctx).Error("No peer to send message to", "ID", c.ID)
 			c.Send <- ErrorByte(errors.New("no peer connected"))
 			return
 		}
 		c.Peer.Send <- message
 	case "disconnect":
-		slog.Debug("Client disconnected", "ID", c.ID)
+		log.WithContext(ctx).Info("Client disconnected")
 		c.Hub.Unregister <- c
 	case "rematch":
-		slog.Debug("Client rematch", "ID", c.ID)
+		log.WithContext(ctx).Info("Client rematch", "ID", c.ID)
 		a, b := c.Peer, c
 		if a != nil {
 			a.Session = nil
@@ -98,18 +99,18 @@ func (c *Client) HandleMessage(message []byte) {
 		}
 	case "sdp-offer", "sdp-answer", "ice-candidate":
 		if c.Peer != nil {
-			slog.Debug("Forwarding message to peer", "peerID", c.Peer.ID, "type", messageType.Type)
+			log.WithContext(ctx).Debug("Forwarding message to peer", "type", messageType.Type)
 			c.Peer.Send <- message
 		} else {
-			slog.Error("No peer to forward message to", "ID", c.ID)
+			log.WithContext(ctx).Error("No peer to forward message to")
 			c.Send <- ErrorByte(errors.New("no peer connected"))
 		}
 	default:
-		slog.Error("Unknown message type", "ID", c.ID, "type", messageType.Type)
+		log.WithContext(ctx).Error("Unknown message type", "type", messageType.Type)
 	}
 }
 
-func (c *Client) ReadPump() {
+func (c *Client) ReadPump(ctx context.Context) {
 	// cleanup function to close the connection when the function exits
 	defer func() {
 		c.Hub.Unregister <- c
@@ -119,7 +120,7 @@ func (c *Client) ReadPump() {
 	c.Conn.SetReadLimit(maxMessageSize)
 	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.Conn.SetPongHandler(func(string) error {
-		slog.Debug("Received pong", "ID", c.ID)
+		log.WithContext(ctx).Debug("Received pong", "ID", c.ID)
 		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
@@ -129,17 +130,17 @@ func (c *Client) ReadPump() {
 		if err != nil {
 			var closeErr *websocket.CloseError
 			if errors.As(err, &closeErr) && closeErr.Code == websocket.CloseGoingAway {
-				slog.Info("Client connection closed by peer", "ID", c.ID)
+				log.WithContext(ctx).Info("Client connection closed by peer", "ID", c.ID)
 			} else {
-				slog.Error("Failed to read message", "ID", c.ID, "error", err)
+				log.WithContext(ctx).Error("Failed to read message", "ID", c.ID, "error", err)
 			}
 			return
 		}
-		c.HandleMessage(message)
+		c.HandleMessage(ctx, message)
 	}
 }
 
-func (c *Client) WritePump() {
+func (c *Client) WritePump(ctx context.Context) {
 	ticker := time.NewTicker(pingPeriod)
 
 	defer func() {
@@ -159,21 +160,21 @@ func (c *Client) WritePump() {
 			}
 			w, err := c.Conn.NextWriter(websocket.TextMessage)
 			if err != nil {
-				slog.Error("Failed to get next writer", "ID", c.ID, "error", err)
+				log.WithContext(ctx).Error("Failed to get next writer", "error", err)
 				return
 			}
 			if _, err := w.Write(message); err != nil {
-				slog.Error("Failed to write message", "ID", c.ID, "error", err)
+				log.WithContext(ctx).Error("Failed to write message", "error", err)
 				return
 			}
 			if err := w.Close(); err != nil {
-				slog.Error("Failed to close writer", "ID", c.ID, "error", err)
+				log.WithContext(ctx).Error("Failed to close writer", "error", err)
 				return
 			}
 		case <-ticker.C:
 			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				slog.Error("Failed to write ping message", "ID", c.ID, "error", err)
+				log.WithContext(ctx).Error("Failed to write ping message", "error", err)
 				return
 			}
 		}

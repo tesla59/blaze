@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tesla59/blaze/config"
+	"github.com/tesla59/blaze/log"
 	"github.com/tesla59/blaze/models"
 	"github.com/tesla59/blaze/repository"
 	"github.com/tesla59/blaze/service"
-	"log/slog"
 	"net/http"
 )
 
@@ -58,9 +58,14 @@ func (c *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctxLogger := log.Logger.With("method", "postHandler", "path", r.URL.Path)
+	ctx := log.Inject(r.Context(), ctxLogger)
+
+	log.WithContext(ctx).Info("Handling client registration request")
+
 	client, err := c.service.RegisterClient(ctx)
 	if err != nil {
+		log.WithContext(ctx).Error("Error registering client", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -70,13 +75,20 @@ func (c *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	err = json.NewEncoder(w).Encode(client)
 	if err != nil {
-		slog.Error("Error encoding response", "client", client, "error", err)
+		log.WithContext(ctx).Error("Error encoding response", "client", client, "error", err)
 	}
+	log.WithContext(ctx).Info("Client registered", "client", client)
 }
 
 func (c *Handler) verifyHandler(w http.ResponseWriter, r *http.Request) {
+	ctxLogger := log.Logger.With("method", "verifyHandler", "path", r.URL.Path)
+	ctx := log.Inject(r.Context(), ctxLogger)
+
+	log.WithContext(ctx).Info("Handling client token verification request")
+
 	var client models.Client
 	if err := json.NewDecoder(r.Body).Decode(&client); err != nil {
+		log.WithContext(ctx).Error("Error decoding request body", "error", err)
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
@@ -84,12 +96,14 @@ func (c *Handler) verifyHandler(w http.ResponseWriter, r *http.Request) {
 	// Verify the token
 	expectedToken := signUser(client.ID, client.UUID, client.UserName, config.GetConfig().Server.Secret)
 	if client.Token != expectedToken {
+		log.WithContext(ctx).Warn("Invalid token", "clientID", client.ID, "expectedToken", expectedToken, "receivedToken", client.Token)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Token verified successfully\n"))
+	log.WithContext(ctx).Info("Token verified successfully", "clientID", client.ID)
 }
 
 func signUser(id int, uuid, username, secret string) string {

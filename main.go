@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/tesla59/blaze/config"
 	"github.com/tesla59/blaze/database"
+	"github.com/tesla59/blaze/log"
 	"github.com/tesla59/blaze/matchmaker"
 	"github.com/tesla59/blaze/server"
 	"log/slog"
@@ -11,11 +12,12 @@ import (
 
 func main() {
 	cfg := config.GetConfig()
+	log.Init()
 
 	ctx := context.Background()
 	db, err := database.GetPool(ctx)
 	if err != nil {
-		slog.Error("error connecting to database", "error", err.Error())
+		log.Logger.Error("error connecting to database", "error", err.Error())
 		return
 	}
 

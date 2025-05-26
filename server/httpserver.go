@@ -4,12 +4,12 @@ import (
 	"crypto/tls"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tesla59/blaze/config"
+	"github.com/tesla59/blaze/log"
 	"github.com/tesla59/blaze/matchmaker"
 	"github.com/tesla59/blaze/server/client"
 	serveMatchmaker "github.com/tesla59/blaze/server/matchmaker"
 	"github.com/tesla59/blaze/server/websocket"
 	"github.com/tesla59/blaze/types"
-	"log/slog"
 	"net/http"
 	"slices"
 )
@@ -42,7 +42,7 @@ func NewHTTPServer(cfg *types.Config, hub *matchmaker.Hub, pool *pgxpool.Pool) S
 
 func (s *httpServer) Start() error {
 	s.registerHandlers()
-	slog.Info("Starting Server on " + s.cfg.Server.Host + ":" + s.cfg.Server.Port)
+	log.Logger.Info("Starting Server on " + s.cfg.Server.Host + ":" + s.cfg.Server.Port)
 
 	if s.cfg.Server.SSL.Enabled {
 		return s.server.ListenAndServeTLS(s.cfg.Server.SSL.CertFile, s.cfg.Server.SSL.KeyFile)
@@ -75,7 +75,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		allowedOrigins := config.GetConfig().Server.AllowedOrigins
 
 		if origin == "" || !slices.Contains(allowedOrigins, origin) {
-			slog.Warn("Origin not allowed", "origin", origin, "allowedOrigins", allowedOrigins)
+			log.Logger.Warn("Origin not allowed", "origin", origin, "allowedOrigins", allowedOrigins)
 			http.Error(w, "Origin not allowed", http.StatusForbidden)
 			return
 		}
