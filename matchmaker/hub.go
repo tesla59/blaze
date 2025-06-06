@@ -3,6 +3,8 @@ package matchmaker
 import (
 	"strconv"
 	"sync"
+
+	"github.com/tesla59/blaze/types"
 )
 
 type Hub struct {
@@ -44,7 +46,7 @@ func (h *Hub) Run() {
 			if client.Peer != nil {
 				peer := client.Peer
 				peer.Send <- DisconnectedMessage()
-				peer.State = "queued"
+				peer.State = types.Waiting
 				peer.Peer = nil
 				h.Matchmaker.Enqueue(peer)
 			}

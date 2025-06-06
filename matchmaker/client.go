@@ -27,7 +27,7 @@ const (
 
 type Client struct {
 	*models.Client
-	State string
+	State types.State
 
 	Session *Session
 	Hub     *Hub
@@ -39,7 +39,7 @@ type Client struct {
 	Peer *Client
 }
 
-func NewClient(c *models.Client, state string, conn *websocket.Conn, h *Hub) *Client {
+func NewClient(c *models.Client, state types.State, conn *websocket.Conn, h *Hub) *Client {
 	return &Client{
 		Client:  c,
 		State:   state,
@@ -87,13 +87,13 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 		if a != nil {
 			a.Session = nil
 			a.Peer = nil
-			a.State = "queued"
+			a.State = types.Waiting
 			a.Send <- DisconnectedMessage()
 			c.Hub.Matchmaker.Enqueue(a)
 		}
 		if b != nil {
 			b.Peer = nil
-			b.State = "queued"
+			b.State = types.Waiting
 			b.Send <- DisconnectedMessage()
 			c.Hub.Matchmaker.Enqueue(b)
 		}
