@@ -78,6 +78,23 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 			return
 		}
 		c.Peer.Send <- message
+	case "end":
+		log.WithContext(ctx).Info("Client ended chat session", "ID", c.ID)
+		a, b := c.Peer, c
+		if a != nil {
+			log.WithContext(ctx).Info("Disconnecting peer", "ID", a.ID)
+			a.Session = nil
+			a.Peer = nil
+			a.State = types.Waiting
+			a.Send <- DisconnectedMessage()
+			c.Hub.Matchmaker.Enqueue(a)
+		}
+		if b != nil {
+			b.Peer = nil
+			b.State = types.Connected
+			b.Session = nil
+			b.Send <- DisconnectedMessage()
+		}
 	case "disconnect":
 		log.WithContext(ctx).Info("Client disconnected")
 		c.Hub.Unregister <- c
