@@ -1,9 +1,11 @@
 package matchmaker
 
 import (
-	"github.com/tesla59/blaze/log"
 	"strconv"
 	"sync"
+
+	"github.com/tesla59/blaze/log"
+	"github.com/tesla59/blaze/types"
 )
 
 type Matchmaker struct {
@@ -33,7 +35,7 @@ func (m *Matchmaker) Enqueue(c *Client) {
 
 	// Match with the first available peer
 	for i, peer := range m.queue {
-		if peer.State == "queued" && peer.ID != c.ID {
+		if peer.State == types.Waiting && peer.ID != c.ID {
 			// Remove the peer from the queue
 			m.queue = append(m.queue[:i], m.queue[i+1:]...)
 			m.matchPair(c, peer)
@@ -42,7 +44,7 @@ func (m *Matchmaker) Enqueue(c *Client) {
 	}
 
 	// Add the client to the queue
-	c.State = "queued"
+	c.State = types.Waiting
 	m.queue = append(m.queue, c)
 }
 
@@ -54,11 +56,11 @@ func (m *Matchmaker) matchPair(a, b *Client) {
 
 	a.Session = session
 	a.Peer = b
-	a.State = "matched"
+	a.State = types.Matched
 
 	b.Session = session
 	b.Peer = a
-	b.State = "matched"
+	b.State = types.Matched
 
 	a.Send <- MatchedMessage(b)
 	b.Send <- MatchedMessage(a)
@@ -86,7 +88,7 @@ func (m *Matchmaker) GetQueueState() []map[string]string {
 	for i, client := range m.queue {
 		queueState[i] = map[string]string{
 			"ID":    strconv.Itoa(client.ID),
-			"State": client.State,
+			"State": client.State.String(),
 		}
 	}
 	return queueState

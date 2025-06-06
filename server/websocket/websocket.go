@@ -108,7 +108,7 @@ func newClientFromMessage(ctx context.Context, message []byte, conn *websocket.C
 		return nil, fmt.Errorf("client is nil")
 	}
 
-	client := matchmaker.NewClient(identityMessage.Client, "waiting", conn, h)
+	client := matchmaker.NewClient(identityMessage.Client, types.Connected, conn, h)
 
 	return client, nil
 }
