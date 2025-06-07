@@ -31,3 +31,16 @@ type MatchedMessage struct {
 	MessageType
 	Client models.Client `json:"client"`
 }
+
+type State int
+
+const (
+	Connected State = iota
+	Waiting
+	Matched
+	Disconnected
+)
+
+func (s State) String() string {
+	return [...]string{"Connected", "Waiting", "Matched", "Disconnected"}[s]
+}
