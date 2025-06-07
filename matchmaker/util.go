@@ -6,6 +6,16 @@ import (
 	"github.com/tesla59/blaze/types"
 )
 
+func PeerDisconnectedMessage() []byte {
+	msg := types.PeerDisconnectedMessage{
+		MessageType: types.MessageType{
+			Type: "peer_disconnected",
+		},
+	}
+	message, _ := json.Marshal(msg)
+	return message
+}
+
 func DisconnectedMessage() []byte {
 	msg := types.DisconnectedMessage{
 		MessageType: types.MessageType{
