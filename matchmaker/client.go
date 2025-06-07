@@ -94,6 +94,7 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 			b.State = types.Connected
 			b.Session = nil
 			b.Send <- DisconnectedMessage()
+			b.Hub.Matchmaker.RemoveFromQueue(b)
 		}
 	case "disconnect":
 		log.WithContext(ctx).Info("Client disconnected")
