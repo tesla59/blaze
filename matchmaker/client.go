@@ -86,7 +86,7 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 			a.Session = nil
 			a.Peer = nil
 			a.State = types.Waiting
-			a.Send <- DisconnectedMessage()
+			a.Send <- PeerDisconnectedMessage()
 			c.Hub.Matchmaker.Enqueue(a)
 		}
 		if b != nil {

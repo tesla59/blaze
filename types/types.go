@@ -22,6 +22,10 @@ type DisconnectedMessage struct {
 	MessageType
 }
 
+type PeerDisconnectedMessage struct {
+	MessageType
+}
+
 type ErrorMessage struct {
 	MessageType
 	Error string `json:"error"`
