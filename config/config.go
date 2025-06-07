@@ -1,6 +1,7 @@
 package config
 
 import (
+	_ "github.com/joho/godotenv/autoload"
 	"github.com/spf13/viper"
 	"github.com/tesla59/blaze/types"
 	"strings"
