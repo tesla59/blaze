@@ -1,6 +1,7 @@
 package matchmaker
 
 import (
+	"slices"
 	"strconv"
 	"sync"
 
@@ -20,7 +21,7 @@ func NewMatchmaker(queueSize int) *Matchmaker {
 	}
 }
 
-func (m *Matchmaker) Enqueue(c *Client) {
+func (m *Matchmaker) enqueue(c *Client) {
 	log.Logger.Info("Enqueueing client", "ID", c.ID)
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -52,7 +53,7 @@ func (m *Matchmaker) Enqueue(c *Client) {
 func (m *Matchmaker) matchPair(a, b *Client) {
 	log.Logger.Info("Matched pair", "a", a.ID, "b", b.ID)
 	// Create a session and tie the two clients together
-	session := NewSession(a, b)
+	session := newSession(a, b)
 
 	a.Session = session
 	a.Peer = b
@@ -62,22 +63,18 @@ func (m *Matchmaker) matchPair(a, b *Client) {
 	b.Peer = a
 	b.State = types.Matched
 
-	a.Send <- MatchedMessage(b)
-	b.Send <- MatchedMessage(a)
+	a.Send <- matchedMessage(b)
+	b.Send <- matchedMessage(a)
 }
 
-// RemoveFromQueue removes c if it’s still waiting
-func (m *Matchmaker) RemoveFromQueue(c *Client) {
+// removeFromQueue removes c if it’s still waiting
+func (m *Matchmaker) removeFromQueue(c *Client) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for i, queued := range m.queue {
-		if queued.ID == c.ID {
-			// drop it out
-			m.queue = append(m.queue[:i], m.queue[i+1:]...)
-			break
-		}
-	}
+	m.queue = slices.DeleteFunc(m.queue, func(queued *Client) bool {
+		return queued.ID == c.ID
+	})
 }
 
 func (m *Matchmaker) GetQueueState() []map[string]string {

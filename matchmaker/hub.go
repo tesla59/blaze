@@ -35,7 +35,7 @@ func (h *Hub) Run() {
 		case client := <-h.Unregister:
 			h.mu.Lock()
 			// Remove the client from the hub
-			h.Matchmaker.RemoveFromQueue(client)
+			h.Matchmaker.removeFromQueue(client)
 			if _, ok := h.clients[strconv.Itoa(client.ID)]; ok {
 				delete(h.clients, strconv.Itoa(client.ID))
 				close(client.Send)
@@ -45,18 +45,11 @@ func (h *Hub) Run() {
 			// Notify and re-enqueue peer if any
 			if client.Peer != nil {
 				peer := client.Peer
-				peer.Send <- DisconnectedMessage()
+				peer.Send <- disconnectedMessage()
 				peer.State = types.Waiting
 				peer.Peer = nil
-				h.Matchmaker.Enqueue(peer)
+				h.Matchmaker.enqueue(peer)
 			}
 		}
 	}
-}
-
-func (h *Hub) GetClientByID(id string) (*Client, bool) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	client, ok := h.clients[id]
-	return client, ok
 }

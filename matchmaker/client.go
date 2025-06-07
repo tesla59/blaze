@@ -29,7 +29,7 @@ type Client struct {
 	*models.Client
 	State types.State
 
-	Session *Session
+	Session *session
 	Hub     *Hub
 
 	Conn *websocket.Conn
@@ -51,30 +51,30 @@ func NewClient(c *models.Client, state types.State, conn *websocket.Conn, h *Hub
 	}
 }
 
-// HandleMessage handles incoming messages from the client
-func (c *Client) HandleMessage(ctx context.Context, message []byte) {
+// handleMessage handles incoming messages from the client
+func (c *Client) handleMessage(ctx context.Context, message []byte) {
 	var messageType types.MessageType
 	if err := json.Unmarshal(message, &messageType); err != nil {
 		log.WithContext(ctx).Error("Failed to unmarshal received message", "message", string(message), "error", err)
-		c.Send <- ErrorByte(err)
+		c.Send <- errorByte(err)
 		return
 	}
 	log.WithContext(ctx).Debug("Received message", "message", string(message))
 	switch messageType.Type {
 	case "join":
 		log.WithContext(ctx).Debug("Client joined")
-		c.Hub.Matchmaker.Enqueue(c)
+		c.Hub.Matchmaker.enqueue(c)
 	case "message":
 		var peerMessage types.Message
 		if err := json.Unmarshal(message, &peerMessage); err != nil {
 			log.WithContext(ctx).Error("Failed to unmarshal peer message", "error", err)
-			c.Send <- ErrorByte(err)
+			c.Send <- errorByte(err)
 			return
 		}
 		log.WithContext(ctx).Info("Forwarding message", "message", peerMessage.Message)
 		if c.Peer == nil {
 			log.WithContext(ctx).Error("No peer to send message to", "ID", c.ID)
-			c.Send <- ErrorByte(errors.New("no peer connected"))
+			c.Send <- errorByte(errors.New("no peer connected"))
 			return
 		}
 		c.Peer.Send <- message
@@ -86,14 +86,14 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 			a.Session = nil
 			a.Peer = nil
 			a.State = types.Waiting
-			a.Send <- DisconnectedMessage()
-			c.Hub.Matchmaker.Enqueue(a)
+			a.Send <- disconnectedMessage()
+			c.Hub.Matchmaker.enqueue(a)
 		}
 		if b != nil {
 			b.Peer = nil
 			b.State = types.Connected
 			b.Session = nil
-			b.Send <- DisconnectedMessage()
+			b.Send <- disconnectedMessage()
 		}
 	case "disconnect":
 		log.WithContext(ctx).Info("Client disconnected")
@@ -105,14 +105,14 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 			a.Session = nil
 			a.Peer = nil
 			a.State = types.Waiting
-			a.Send <- DisconnectedMessage()
-			c.Hub.Matchmaker.Enqueue(a)
+			a.Send <- disconnectedMessage()
+			c.Hub.Matchmaker.enqueue(a)
 		}
 		if b != nil {
 			b.Peer = nil
 			b.State = types.Waiting
-			b.Send <- DisconnectedMessage()
-			c.Hub.Matchmaker.Enqueue(b)
+			b.Send <- disconnectedMessage()
+			c.Hub.Matchmaker.enqueue(b)
 		}
 	case "sdp-offer", "sdp-answer", "ice-candidate":
 		if c.Peer != nil {
@@ -120,7 +120,7 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 			c.Peer.Send <- message
 		} else {
 			log.WithContext(ctx).Error("No peer to forward message to")
-			c.Send <- ErrorByte(errors.New("no peer connected"))
+			c.Send <- errorByte(errors.New("no peer connected"))
 		}
 	default:
 		log.WithContext(ctx).Error("Unknown message type", "type", messageType.Type)
@@ -135,11 +135,10 @@ func (c *Client) ReadPump(ctx context.Context) {
 	}()
 
 	c.Conn.SetReadLimit(maxMessageSize)
-	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait)) //nolint:errcheck
 	c.Conn.SetPongHandler(func(string) error {
 		log.WithContext(ctx).Debug("Received pong", "ID", c.ID)
-		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-		return nil
+		return c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 	})
 
 	for {
@@ -153,7 +152,7 @@ func (c *Client) ReadPump(ctx context.Context) {
 			}
 			return
 		}
-		c.HandleMessage(ctx, message)
+		c.handleMessage(ctx, message)
 	}
 }
 

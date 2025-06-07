@@ -6,7 +6,7 @@ import (
 	"github.com/tesla59/blaze/types"
 )
 
-func DisconnectedMessage() []byte {
+func disconnectedMessage() []byte {
 	msg := types.DisconnectedMessage{
 		MessageType: types.MessageType{
 			Type: "disconnected",
@@ -16,7 +16,7 @@ func DisconnectedMessage() []byte {
 	return message
 }
 
-func ErrorByte(err error) []byte {
+func errorByte(err error) []byte {
 	msg := types.ErrorMessage{
 		MessageType: types.MessageType{
 			Type: "error",
@@ -27,7 +27,7 @@ func ErrorByte(err error) []byte {
 	return message
 }
 
-func MatchedMessage(peer *Client) []byte {
+func matchedMessage(peer *Client) []byte {
 	peerClient := models.Client{
 		ID:       peer.ID,
 		UUID:     peer.UUID,
