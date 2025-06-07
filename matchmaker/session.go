@@ -7,15 +7,15 @@ import (
 	"time"
 )
 
-type Session struct {
+type session struct {
 	ID      string
 	Client1 *Client
 	Client2 *Client
 	Mu      *sync.Mutex
 }
 
-func NewSession(client1, client2 *Client) *Session {
-	return &Session{
+func newSession(client1, client2 *Client) *session {
+	return &session{
 		ID:      generateSessionID(),
 		Client1: client1,
 		Client2: client2,
