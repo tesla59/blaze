@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -67,6 +68,11 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//TODO: check if required
+	// this will kill all clients which have joined the websocket connection but haven't
+	// joined the queue. This needs to cleared so that real clients are not disconnected
+	conn.SetReadDeadline(time.Now().Add(1 * time.Hour))
+
 	// Identify the client
 	_, message, err := conn.ReadMessage()
 	if err != nil {
@@ -74,6 +80,9 @@ func (h *WSHandler) websocketHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	//TODO: check if required
+	conn.SetReadDeadline(time.Time{})
 
 	localClient, err := newClientFromMessage(ctx, message, conn, h.Hub)
 	if err != nil {
