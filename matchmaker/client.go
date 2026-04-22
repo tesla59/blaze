@@ -52,6 +52,7 @@ func NewClient(c *models.Client, state types.State, conn *websocket.Conn, h *Hub
 		Conn:    conn,
 		Send:    make(chan []byte, 256),
 		Peer:    nil,
+		closeOne: sync.Once{},
 	}
 }
 
