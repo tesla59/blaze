@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/gorilla/websocket"
 	"github.com/tesla59/blaze/log"
 	"github.com/tesla59/blaze/models"
 	"github.com/tesla59/blaze/types"
-	"time"
 )
 
 const (
@@ -37,6 +39,8 @@ type Client struct {
 	Send chan []byte
 
 	Peer *Client
+
+	closeOne sync.Once
 }
 
 func NewClient(c *models.Client, state types.State, conn *websocket.Conn, h *Hub) *Client {
@@ -131,7 +135,7 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 func (c *Client) ReadPump(ctx context.Context) {
 	// cleanup function to close the connection when the function exits
 	defer func() {
-		c.Hub.Unregister <- c
+		c.unregister()
 		c.Conn.Close()
 	}()
 
@@ -163,7 +167,7 @@ func (c *Client) WritePump(ctx context.Context) {
 
 	defer func() {
 		ticker.Stop()
-		c.Hub.Unregister <- c
+		c.unregister()
 		c.Conn.Close()
 	}()
 
@@ -197,4 +201,10 @@ func (c *Client) WritePump(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func (c *Client) unregister() {
+	c.closeOne.Do(func() {
+		c.Hub.Unregister <- c
+	})
 }
