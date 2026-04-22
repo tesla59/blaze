@@ -1,7 +1,16 @@
 package server
 
 import (
+	"context"
 	"crypto/tls"
+	"errors"
+	"net/http"
+	"os"
+	"os/signal"
+	"slices"
+	"syscall"
+	"time"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tesla59/blaze/config"
 	"github.com/tesla59/blaze/log"
@@ -10,8 +19,6 @@ import (
 	serveMatchmaker "github.com/tesla59/blaze/server/matchmaker"
 	"github.com/tesla59/blaze/server/websocket"
 	"github.com/tesla59/blaze/types"
-	"net/http"
-	"slices"
 )
 
 type httpServer struct {
@@ -44,11 +51,34 @@ func (s *httpServer) Start() error {
 	s.registerHandlers()
 	log.Logger.Info("Starting Server on " + s.cfg.Server.Host + ":" + s.cfg.Server.Port)
 
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigChan
+
+		log.Logger.Info("Shutting down server...")
+
+		// wait for 10 seconds for all websocket connections to exist gracefully
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := s.server.Shutdown(ctx); err != nil {
+			log.Logger.Error("Server shutdown error", "error", err)
+		}
+	}()
+
+	var err error
 	if s.cfg.Server.SSL.Enabled {
-		return s.server.ListenAndServeTLS(s.cfg.Server.SSL.CertFile, s.cfg.Server.SSL.KeyFile)
+		err = s.server.ListenAndServeTLS(s.cfg.Server.SSL.CertFile, s.cfg.Server.SSL.KeyFile)
 	} else {
-		return s.server.ListenAndServe()
+		err = s.server.ListenAndServe()
 	}
+
+	if errors.Is(err, http.ErrServerClosed) {
+		log.Logger.Info("Server stopped gracefully")
+		return nil
+	}
+	return err
 }
 
 func (s *httpServer) registerHandlers() {
