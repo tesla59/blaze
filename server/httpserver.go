@@ -56,10 +56,12 @@ func (s *httpServer) registerHandlers() {
 		"/":                          homeHandler,
 		"/healthz":                   healthHandler,
 		"/ws":                        websocket.NewWSHandler(s.hub, s.db).Handle(),
-		"/queue":                     serveMatchmaker.NewQueueStateHandler(s.hub.Matchmaker).Handle(),
 		"POST /api/v1/client":        client.NewClientHandler(s.db).Handle("POST"),
 		"GET /api/v1/client":         client.NewClientHandler(s.db).Handle("GET"),
 		"POST /api/v1/client/verify": client.NewClientHandler(s.db).Handle("POST"),
+	}
+	if s.cfg.Environment != "production" {
+		handlerMap["/queue"] = serveMatchmaker.NewQueueStateHandler(s.hub.Matchmaker).Handle()
 	}
 	for path, handler := range handlerMap {
 		s.mux.HandleFunc(path, handler)
