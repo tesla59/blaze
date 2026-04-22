@@ -36,23 +36,24 @@ type Client struct {
 
 	Conn *websocket.Conn
 
-	Send chan []byte
+	send     chan []byte
+	closeOne sync.Once
+	done     chan any
 
 	Peer *Client
-
-	closeOne sync.Once
 }
 
 func NewClient(c *models.Client, state types.State, conn *websocket.Conn, h *Hub) *Client {
 	return &Client{
-		Client:  c,
-		State:   state,
-		Session: nil,
-		Hub:     h,
-		Conn:    conn,
-		Send:    make(chan []byte, 256),
-		Peer:    nil,
+		Client:   c,
+		State:    state,
+		Session:  nil,
+		Hub:      h,
+		Conn:     conn,
+		send:     make(chan []byte, 256),
+		Peer:     nil,
 		closeOne: sync.Once{},
+		done:     make(chan any),
 	}
 }
 
@@ -61,7 +62,7 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 	var messageType types.MessageType
 	if err := json.Unmarshal(message, &messageType); err != nil {
 		log.WithContext(ctx).Error("Failed to unmarshal received message", "message", string(message), "error", err)
-		c.Send <- ErrorByte(err)
+		c.SafeSend(ErrorByte(err))
 		return
 	}
 	log.WithContext(ctx).Debug("Received message", "message", string(message))
@@ -73,16 +74,16 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 		var peerMessage types.Message
 		if err := json.Unmarshal(message, &peerMessage); err != nil {
 			log.WithContext(ctx).Error("Failed to unmarshal peer message", "error", err)
-			c.Send <- ErrorByte(err)
+			c.SafeSend(ErrorByte(err))
 			return
 		}
 		log.WithContext(ctx).Info("Forwarding message", "message", peerMessage.Message)
 		if c.Peer == nil {
 			log.WithContext(ctx).Error("No peer to send message to", "ID", c.ID)
-			c.Send <- ErrorByte(errors.New("no peer connected"))
+			c.SafeSend(ErrorByte(errors.New("no peer connected")))
 			return
 		}
-		c.Peer.Send <- message
+		c.Peer.SafeSend(message)
 	case "end":
 		log.WithContext(ctx).Info("Client ended chat session", "ID", c.ID)
 		a, b := c.Peer, c
@@ -91,14 +92,14 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 			a.Session = nil
 			a.Peer = nil
 			a.State = types.Waiting
-			a.Send <- PeerDisconnectedMessage()
+			a.SafeSend(PeerDisconnectedMessage())
 			c.Hub.Matchmaker.Enqueue(a)
 		}
 		if b != nil {
 			b.Peer = nil
 			b.State = types.Connected
 			b.Session = nil
-			b.Send <- DisconnectedMessage()
+			b.SafeSend(DisconnectedMessage())
 			b.Hub.Matchmaker.RemoveFromQueue(b)
 		}
 	case "disconnect":
@@ -111,22 +112,22 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 			a.Session = nil
 			a.Peer = nil
 			a.State = types.Waiting
-			a.Send <- DisconnectedMessage()
+			a.SafeSend(DisconnectedMessage())
 			c.Hub.Matchmaker.Enqueue(a)
 		}
 		if b != nil {
 			b.Peer = nil
 			b.State = types.Waiting
-			b.Send <- DisconnectedMessage()
+			b.SafeSend(DisconnectedMessage())
 			c.Hub.Matchmaker.Enqueue(b)
 		}
 	case "sdp-offer", "sdp-answer", "ice-candidate":
 		if c.Peer != nil {
 			log.WithContext(ctx).Debug("Forwarding message to peer", "type", messageType.Type)
-			c.Peer.Send <- message
+			c.Peer.SafeSend(message)
 		} else {
 			log.WithContext(ctx).Error("No peer to forward message to")
-			c.Send <- ErrorByte(errors.New("no peer connected"))
+			c.SafeSend(ErrorByte(errors.New("no peer connected")))
 		}
 	default:
 		log.WithContext(ctx).Error("Unknown message type", "type", messageType.Type)
@@ -163,6 +164,15 @@ func (c *Client) ReadPump(ctx context.Context) {
 	}
 }
 
+func (c *Client) SafeSend(msg []byte) bool {
+	select {
+	case <-c.done:
+		return false
+	case c.send <- msg:
+		return true
+	}
+}
+
 func (c *Client) WritePump(ctx context.Context) {
 	ticker := time.NewTicker(pingPeriod)
 
@@ -174,7 +184,7 @@ func (c *Client) WritePump(ctx context.Context) {
 
 	for {
 		select {
-		case message, ok := <-c.Send:
+		case message, ok := <-c.send:
 			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
@@ -202,6 +212,11 @@ func (c *Client) WritePump(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func (c *Client) CloseChannels() {
+	close(c.done)
+	close(c.send)
 }
 
 func (c *Client) unregister() {

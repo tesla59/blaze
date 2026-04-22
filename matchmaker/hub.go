@@ -38,14 +38,14 @@ func (h *Hub) Run() {
 			h.Matchmaker.RemoveFromQueue(client)
 			if _, ok := h.clients[strconv.Itoa(client.ID)]; ok {
 				delete(h.clients, strconv.Itoa(client.ID))
-				close(client.Send)
+				client.CloseChannels()
 			}
 			h.mu.Unlock()
 
 			// Notify and re-enqueue peer if any
 			if client.Peer != nil {
 				peer := client.Peer
-				peer.Send <- DisconnectedMessage()
+				peer.SafeSend(DisconnectedMessage())
 				peer.State = types.Waiting
 				peer.Peer = nil
 				h.Matchmaker.Enqueue(peer)

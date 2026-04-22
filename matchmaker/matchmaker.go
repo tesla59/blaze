@@ -62,8 +62,8 @@ func (m *Matchmaker) matchPair(a, b *Client) {
 	b.Peer = a
 	b.State = types.Matched
 
-	a.Send <- MatchedMessage(b)
-	b.Send <- MatchedMessage(a)
+	a.SafeSend(MatchedMessage(b))
+	b.SafeSend(MatchedMessage(a))
 }
 
 // RemoveFromQueue removes c if it’s still waiting
