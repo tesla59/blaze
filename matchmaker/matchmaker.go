@@ -1,7 +1,6 @@
 package matchmaker
 
 import (
-	"strconv"
 	"sync"
 
 	"github.com/tesla59/blaze/log"
@@ -87,7 +86,7 @@ func (m *Matchmaker) GetQueueState() []map[string]string {
 	queueState := make([]map[string]string, len(m.queue))
 	for i, client := range m.queue {
 		queueState[i] = map[string]string{
-			"ID":    strconv.Itoa(client.ID),
+			"ID":    client.Key(),
 			"State": client.State.String(),
 		}
 	}

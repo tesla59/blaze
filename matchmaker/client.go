@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"sync"
 	"time"
 
@@ -24,7 +25,7 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer.
-	maxMessageSize = 1024 * 1024
+	maxMessageSize = 64 * 1024
 )
 
 type Client struct {
@@ -224,4 +225,8 @@ func (c *Client) unregister() {
 	c.closeOne.Do(func() {
 		c.Hub.Unregister <- c
 	})
+}
+
+func (c *Client) Key() string {
+	return strconv.Itoa(c.ID)
 }

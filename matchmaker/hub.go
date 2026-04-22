@@ -1,7 +1,6 @@
 package matchmaker
 
 import (
-	"strconv"
 	"sync"
 
 	"github.com/tesla59/blaze/types"
@@ -29,7 +28,7 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.Register:
 			h.mu.Lock()
-			h.clients[strconv.Itoa(client.ID)] = client
+			h.clients[client.Key()] = client
 			h.mu.Unlock()
 
 		case client := <-h.Unregister:
@@ -38,8 +37,8 @@ func (h *Hub) Run() {
 
 			// Lock Hub after Matchmaker to prevent deadlock condition when queue is full
 			h.mu.Lock()
-			if _, ok := h.clients[strconv.Itoa(client.ID)]; ok {
-				delete(h.clients, strconv.Itoa(client.ID))
+			if _, ok := h.clients[client.Key()]; ok {
+				delete(h.clients, client.Key())
 				client.CloseChannels()
 			}
 			h.mu.Unlock()
