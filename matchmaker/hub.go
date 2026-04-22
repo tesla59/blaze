@@ -33,9 +33,11 @@ func (h *Hub) Run() {
 			h.mu.Unlock()
 
 		case client := <-h.Unregister:
-			h.mu.Lock()
 			// Remove the client from the hub
 			h.Matchmaker.RemoveFromQueue(client)
+
+			// Lock Hub after Matchmaker to prevent deadlock condition when queue is full
+			h.mu.Lock()
 			if _, ok := h.clients[strconv.Itoa(client.ID)]; ok {
 				delete(h.clients, strconv.Itoa(client.ID))
 				client.CloseChannels()
