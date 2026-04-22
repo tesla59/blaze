@@ -74,14 +74,19 @@ func corsMiddleware(next http.Handler) http.Handler {
 		origin := r.Header.Get("Origin")
 		allowedOrigins := config.GetConfig().Server.AllowedOrigins
 
-		if origin == "" || !slices.Contains(allowedOrigins, origin) {
-			log.Logger.Warn("Origin not allowed", "origin", origin, "allowedOrigins", allowedOrigins)
-			http.Error(w, "Origin not allowed", http.StatusForbidden)
-			return
+		// Enforce CORS in production environment only. Skip on development
+		if config.GetConfig().Environment == "production" {
+			if origin == "" || !slices.Contains(allowedOrigins, origin) {
+				log.Logger.Warn("Origin not allowed", "origin", origin, "allowedOrigins", allowedOrigins)
+				http.Error(w, "Origin not allowed", http.StatusForbidden)
+				return
+			}
 		}
 
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Vary", "Origin") // important for caching proxies
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin") // important for caching proxies
+		}
 
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
