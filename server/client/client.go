@@ -1,18 +1,16 @@
 package client
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"fmt"
+	"net/http"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tesla59/blaze/config"
 	"github.com/tesla59/blaze/log"
 	"github.com/tesla59/blaze/models"
 	"github.com/tesla59/blaze/repository"
 	"github.com/tesla59/blaze/service"
-	"net/http"
+	"github.com/tesla59/blaze/utils"
 )
 
 // Handler handles client-related operations.
@@ -69,7 +67,7 @@ func (c *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	client.Token = signUser(client.ID, client.UUID, client.UserName, config.GetConfig().Server.Secret)
+	client.Token = utils.SignUser(client.ID, client.UUID, client.UserName, config.GetConfig().Server.Secret)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -94,7 +92,7 @@ func (c *Handler) verifyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify the token
-	expectedToken := signUser(client.ID, client.UUID, client.UserName, config.GetConfig().Server.Secret)
+	expectedToken := utils.SignUser(client.ID, client.UUID, client.UserName, config.GetConfig().Server.Secret)
 	if client.Token != expectedToken {
 		log.WithContext(ctx).Warn("Invalid token", "clientID", client.ID, "expectedToken", expectedToken, "receivedToken", client.Token)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
@@ -104,11 +102,4 @@ func (c *Handler) verifyHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Token verified successfully\n"))
 	log.WithContext(ctx).Info("Token verified successfully", "clientID", client.ID)
-}
-
-func signUser(id int, uuid, username, secret string) string {
-	payload := fmt.Sprintf("%d|%s|%s", id, uuid, username)
-	h := hmac.New(sha256.New, []byte(secret))
-	h.Write([]byte(payload))
-	return hex.EncodeToString(h.Sum(nil))
 }

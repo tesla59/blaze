@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"slices"
+
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tesla59/blaze/config"
@@ -12,8 +15,7 @@ import (
 	"github.com/tesla59/blaze/repository"
 	"github.com/tesla59/blaze/service"
 	"github.com/tesla59/blaze/types"
-	"net/http"
-	"slices"
+	"github.com/tesla59/blaze/utils"
 )
 
 type WSHandler struct {
@@ -106,6 +108,20 @@ func newClientFromMessage(ctx context.Context, message []byte, conn *websocket.C
 
 	if identityMessage.Client == nil {
 		return nil, fmt.Errorf("client is nil")
+	}
+
+	if identityMessage.Client.Token == "" {
+		return nil, fmt.Errorf("client is missing token")
+	}
+
+	expectedToken := utils.SignUser(
+		identityMessage.Client.ID,
+		identityMessage.Client.UUID,
+		identityMessage.Client.UserName,
+		config.GetConfig().Server.Secret,
+	)
+	if identityMessage.Client.Token != expectedToken {
+		return nil, fmt.Errorf("invalid token")
 	}
 
 	client := matchmaker.NewClient(identityMessage.Client, types.Connected, conn, h)
