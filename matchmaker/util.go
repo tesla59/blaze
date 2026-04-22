@@ -26,14 +26,14 @@ func DisconnectedMessage() []byte {
 	return message
 }
 
-func ErrorByte(err error) []byte {
-	msg := types.ErrorMessage{
+func ErrorByte(msg string) []byte {
+	errMsg := types.ErrorMessage{
 		MessageType: types.MessageType{
 			Type: "error",
 		},
-		Error: err.Error(),
+		Error: msg,
 	}
-	message, _ := json.Marshal(msg)
+	message, _ := json.Marshal(errMsg)
 	return message
 }
 

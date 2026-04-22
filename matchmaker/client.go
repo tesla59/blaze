@@ -62,7 +62,7 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 	var messageType types.MessageType
 	if err := json.Unmarshal(message, &messageType); err != nil {
 		log.WithContext(ctx).Error("Failed to unmarshal received message", "message", string(message), "error", err)
-		c.SafeSend(ErrorByte(err))
+		c.SafeSend(ErrorByte("invalid message format"))
 		return
 	}
 	log.WithContext(ctx).Debug("Received message", "message", string(message))
@@ -74,14 +74,14 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 		var peerMessage types.Message
 		if err := json.Unmarshal(message, &peerMessage); err != nil {
 			log.WithContext(ctx).Error("Failed to unmarshal peer message", "error", err)
-			c.SafeSend(ErrorByte(err))
+			c.SafeSend(ErrorByte("invalid message format"))
 			return
 		}
 		log.WithContext(ctx).Info("Forwarding message", "ID", c.ID, "peerID", c.Peer.ID)
 		log.WithContext(ctx).Debug("Message Content", "message", peerMessage.Message)
 		if c.Peer == nil {
 			log.WithContext(ctx).Error("No peer to send message to", "ID", c.ID)
-			c.SafeSend(ErrorByte(errors.New("no peer connected")))
+			c.SafeSend(ErrorByte("no peer connected"))
 			return
 		}
 		c.Peer.SafeSend(message)
@@ -128,7 +128,7 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 			c.Peer.SafeSend(message)
 		} else {
 			log.WithContext(ctx).Error("No peer to forward message to")
-			c.SafeSend(ErrorByte(errors.New("no peer connected")))
+			c.SafeSend(ErrorByte("no peer connected"))
 		}
 	default:
 		log.WithContext(ctx).Error("Unknown message type", "type", messageType.Type)
