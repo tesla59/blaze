@@ -77,7 +77,8 @@ func (c *Client) HandleMessage(ctx context.Context, message []byte) {
 			c.SafeSend(ErrorByte(err))
 			return
 		}
-		log.WithContext(ctx).Info("Forwarding message", "message", peerMessage.Message)
+		log.WithContext(ctx).Info("Forwarding message", "ID", c.ID, "peerID", c.Peer.ID)
+		log.WithContext(ctx).Debug("Message Content", "message", peerMessage.Message)
 		if c.Peer == nil {
 			log.WithContext(ctx).Error("No peer to send message to", "ID", c.ID)
 			c.SafeSend(ErrorByte(errors.New("no peer connected")))
